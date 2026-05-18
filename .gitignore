@@ -1,0 +1,12 @@
+bin/
+obj/
+.vs/
+.dotnet/
+dotnet-install.ps1
+dotnet-sdk-*.zip
+TestResults/
+tmp/
+artifacts/
+release/
+*.user
+*.suo

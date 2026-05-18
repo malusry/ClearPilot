@@ -1,0 +1,37 @@
+namespace ClearPilot.Core.Analysis;
+
+public enum DeepSpaceAdviceKey
+{
+    GenericProjectDependency,
+    NodeModules,
+    PythonVirtualEnvironment,
+    TargetBuildOutput,
+    DotNetBuildOutput,
+    GradleProjectCache,
+    FrontendFrameworkOutput,
+    FrontendBuildCache,
+    ProjectLocalCache,
+    PythonToolCache,
+    TerraformWorkingDirectory,
+    ProjectBuildOutput,
+    CoverageOutput,
+    VendorDependencies,
+    LargeFolder,
+    GenericLargeFile,
+    VideoFile,
+    LogFile,
+    TemporaryFile,
+    BackupFile,
+    GenericArchiveOrInstaller,
+    DiskImage,
+    Installer,
+    Archive,
+    GenericFileTypeSummary,
+    VideoFileTypeSummary,
+    DiskImageFileTypeSummary,
+    InstallerFileTypeSummary,
+    ArchiveFileTypeSummary,
+    LogFileTypeSummary,
+    TemporaryFileTypeSummary,
+    NoExtensionFileTypeSummary
+}
