@@ -7,7 +7,8 @@ public sealed record CleanupRunResult(
     bool DryRun,
     IReadOnlyList<CleanupItemResult> Items,
     string? LogPath,
-    string? LogError = null)
+    string? LogError = null,
+    string RunId = "")
 {
     public int DeletedCount => Items.Count(item => item.Action == CleanupItemAction.Deleted);
 

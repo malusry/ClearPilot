@@ -11,7 +11,11 @@ public sealed record CleanupRule(
     IReadOnlyList<string> ExcludePathSegments,
     TimeSpan? MinimumAge,
     string Explanation,
-    bool Recursive = true)
+    bool Recursive = true,
+    string LauncherName = "",
+    IReadOnlyList<string>? ProcessGuardNames = null)
 {
     public bool CanRunWithoutConfirmation => RiskLevel == RiskLevel.S0VeryLowRisk;
+
+    public IReadOnlyList<string> EffectiveProcessGuardNames => ProcessGuardNames ?? [];
 }

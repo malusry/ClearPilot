@@ -118,15 +118,23 @@ public sealed class DeepSpaceReportWriter
 
             foreach (var item in group)
             {
+                var advice = RecommendationAdvisor.ForDeepSpaceItem(item);
+                var decision = CleanupDecisionAdvisor.ForDeepSpaceItem(item, advice);
                 builder.AppendLine($"#### {EscapeMarkdown(Path.GetFileName(item.Path).Length == 0 ? item.Path : Path.GetFileName(item.Path))}");
                 builder.AppendLine();
                 builder.AppendLine($"`{item.Path}`");
                 builder.AppendLine();
                 builder.AppendLine($"- **{text.Size}:** {FormatBytes(item.SizeBytes)}");
+                builder.AppendLine($"- **{text.Decision}:** `{FormatDecision(language, decision.Decision)}`");
+                builder.AppendLine($"- **{text.DecisionReason}:** {FormatDecisionReason(language, decision)}");
                 builder.AppendLine($"- **{text.Risk}:** `{FormatRisk(item.RiskLevel)}`");
+                builder.AppendLine($"- **{text.Recommendation}:** `{FormatRecommendation(language, advice.Recommendation)}`");
+                builder.AppendLine($"- **{text.AdviceKey}:** `{advice.AdviceKey}`");
                 builder.AppendLine($"- **{text.LastModified}:** {FormatDate(item.LastWriteTime)}");
                 builder.AppendLine($"- **{text.Explanation}:** {DeepSpaceAdviceFormatter.FormatExplanation(language, item)}");
+                builder.AppendLine($"- **{text.PossibleImpact}:** {DeepSpaceAdviceFormatter.FormatPossibleImpact(language, item, advice.PossibleImpact)}");
                 builder.AppendLine($"- **{text.SuggestedAction}:** {DeepSpaceAdviceFormatter.FormatSuggestedAction(language, item)}");
+                builder.AppendLine($"- **{text.SafetyNote}:** {DeepSpaceAdviceFormatter.FormatSafetyNote(language, item, advice.SafetyNote)}");
                 builder.AppendLine();
             }
         }
@@ -141,13 +149,13 @@ public sealed class DeepSpaceReportWriter
     {
         if (total <= 0 || value <= 0)
         {
-            return "`░░░░░░░░░░` 0%";
+            return "`[..........]` 0%";
         }
 
         var ratio = Math.Clamp((double)value / total, 0, 1);
         var filled = Math.Clamp((int)Math.Round(ratio * 10), 1, 10);
         var empty = 10 - filled;
-        return $"`{new string('█', filled)}{new string('░', empty)}` {ratio:P0}";
+        return $"`[{new string('#', filled)}{new string('.', empty)}]` {ratio:P0}";
     }
 
     private static string FormatType(Language language, DeepSpaceItemType type)
@@ -161,6 +169,8 @@ public sealed class DeepSpaceReportWriter
                 DeepSpaceItemType.OldArchiveOrInstaller => "旧压缩包或安装包",
                 DeepSpaceItemType.ProjectDependencyFolder => "项目依赖目录",
                 DeepSpaceItemType.FileTypeSummary => "文件类型统计",
+                DeepSpaceItemType.SystemManagedWindowsArea => "Windows 系统管理区域",
+                DeepSpaceItemType.GameLauncherReviewArea => "游戏启动器复核区域",
                 _ => type.ToString()
             };
         }
@@ -172,6 +182,8 @@ public sealed class DeepSpaceReportWriter
             DeepSpaceItemType.OldArchiveOrInstaller => "Old archive or installer",
             DeepSpaceItemType.ProjectDependencyFolder => "Project dependency folder",
             DeepSpaceItemType.FileTypeSummary => "File type summary",
+            DeepSpaceItemType.SystemManagedWindowsArea => "Windows system-managed area",
+            DeepSpaceItemType.GameLauncherReviewArea => "Game launcher review-only area",
             _ => type.ToString()
         };
     }
@@ -185,6 +197,8 @@ public sealed class DeepSpaceReportWriter
             DeepSpaceItemType.OldArchiveOrInstaller => 2,
             DeepSpaceItemType.ProjectDependencyFolder => 3,
             DeepSpaceItemType.FileTypeSummary => 4,
+            DeepSpaceItemType.SystemManagedWindowsArea => 5,
+            DeepSpaceItemType.GameLauncherReviewArea => 6,
             _ => 100
         };
     }
@@ -199,6 +213,73 @@ public sealed class DeepSpaceReportWriter
             RiskLevel.S3DoNotCleanAutomatically => "S3 MANUAL",
             RiskLevel.Blocked => "BLOCKED",
             _ => riskLevel.ToString()
+        };
+    }
+
+    private static string FormatRecommendation(Language language, RecommendationLevel recommendation)
+    {
+        if (language == Language.SimplifiedChinese)
+        {
+            return recommendation switch
+            {
+                RecommendationLevel.Recommended => "建议",
+                RecommendationLevel.Optional => "可选",
+                RecommendationLevel.NotRecommended => "不建议",
+                RecommendationLevel.ReviewOnly => "仅复核",
+                RecommendationLevel.Blocked => "已阻止",
+                _ => recommendation.ToString()
+            };
+        }
+
+        return recommendation switch
+        {
+            RecommendationLevel.Recommended => "Recommended",
+            RecommendationLevel.Optional => "Optional",
+            RecommendationLevel.NotRecommended => "Not Recommended",
+            RecommendationLevel.ReviewOnly => "Review Only",
+            RecommendationLevel.Blocked => "Blocked",
+            _ => recommendation.ToString()
+        };
+    }
+
+    private static string FormatDecision(Language language, CleanupDecision decision)
+    {
+        if (language == Language.SimplifiedChinese)
+        {
+            return decision switch
+            {
+                CleanupDecision.RecommendedToClean => "建议清理",
+                CleanupDecision.NotRecommendedToClean => "不建议清理",
+                CleanupDecision.AnalysisOnlyDoNotClean => "仅分析，不清理",
+                CleanupDecision.Blocked => "已阻止",
+                _ => decision.ToString()
+            };
+        }
+
+        return decision switch
+        {
+            CleanupDecision.RecommendedToClean => "Recommended to clean",
+            CleanupDecision.NotRecommendedToClean => "Not recommended to clean",
+            CleanupDecision.AnalysisOnlyDoNotClean => "Analysis only, do not clean",
+            CleanupDecision.Blocked => "Blocked",
+            _ => decision.ToString()
+        };
+    }
+
+    private static string FormatDecisionReason(Language language, CleanupDecisionResult decision)
+    {
+        if (language != Language.SimplifiedChinese)
+        {
+            return decision.DecisionReason;
+        }
+
+        return decision.Decision switch
+        {
+            CleanupDecision.AnalysisOnlyDoNotClean => "这是复核项，仅分析不清理。",
+            CleanupDecision.NotRecommendedToClean => "不建议直接清理，请先评估影响。",
+            CleanupDecision.Blocked => "该项目已被阻止。",
+            CleanupDecision.RecommendedToClean => "建议清理。",
+            _ => decision.DecisionReason
         };
     }
 
@@ -262,10 +343,16 @@ public sealed class DeepSpaceReportWriter
         string Type,
         string Location,
         string Size,
+        string Decision,
+        string DecisionReason,
         string Risk,
+        string Recommendation,
+        string AdviceKey,
         string LastModified,
         string Explanation,
+        string PossibleImpact,
         string SuggestedAction,
+        string SafetyNote,
         string Footer)
     {
         public static ReportText For(Language language)
@@ -297,15 +384,21 @@ public sealed class DeepSpaceReportWriter
             "Type",
             "Location",
             "Size",
+            "Decision",
+            "Decision reason",
             "Risk",
+            "Recommendation",
+            "Advice key",
             "Last modified",
             "Explanation",
+            "Possible impact",
             "Suggested action",
+            "Safety note",
             "ClearPilot reports review candidates only. Open locations and decide manually before changing files.");
 
         private static ReportText Chinese { get; } = new(
             "ClearPilot 深度空间分析报告",
-            "仅分析。ClearPilot 生成此报告时没有删除任何文件。",
+            "仅分析：生成报告时 ClearPilot 不会删除文件。",
             "生成时间",
             "概览",
             "指标",
@@ -313,22 +406,28 @@ public sealed class DeepSpaceReportWriter
             "扫描根目录",
             "扫描目录",
             "扫描文件",
-            "复查项目",
-            "复查项占用",
+            "复核项目",
+            "复核占用",
             "扫描范围",
             "类型分布",
-            "最大空间来源",
-            "详细结果",
+            "主要空间来源",
+            "结果详情",
             "数量",
             "占比",
             "排名",
             "类型",
             "位置",
             "大小",
+            "结论",
+            "结论原因",
             "风险",
+            "推荐",
+            "建议键",
             "最后修改",
             "说明",
+            "可能影响",
             "建议操作",
-            "ClearPilot 只报告需要复查的候选项。请打开位置并手动判断后再修改文件。");
+            "安全说明",
+            "ClearPilot 只报告需要复核的候选项，请手动确认后再处理。");
     }
 }

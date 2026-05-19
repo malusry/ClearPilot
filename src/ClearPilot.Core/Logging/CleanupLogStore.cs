@@ -125,6 +125,7 @@ public sealed class CleanupLogStore
             }
 
             return new CleanupLogEntry(
+                string.IsNullOrWhiteSpace(log.RunId) ? string.Empty : log.RunId,
                 log.Mode,
                 log.StartedAt,
                 log.CompletedAt,

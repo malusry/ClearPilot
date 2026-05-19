@@ -1,0 +1,294 @@
+using ClearPilot.Core.Analysis;
+using ClearPilot.Core.Cleanup;
+using ClearPilot.Core.Logging;
+using ClearPilot.Core.Rules;
+using ClearPilot.Core.Safety;
+using ClearPilot.Core.Scanning;
+using Xunit;
+
+namespace ClearPilot.Core.Tests;
+
+public sealed class CleanupRiskGateTests
+{
+    [Fact]
+    public void QuickSafeCleanExecutesOnlyS0AndSkipsS1S2S3AndBlocked()
+    {
+        using var workspace = TestWorkspace.Create();
+        var s0Root = workspace.CreateDirectory("s0");
+        var s1Root = workspace.CreateDirectory("s1");
+        var s2Root = workspace.CreateDirectory("s2");
+        var s3Root = workspace.CreateDirectory("s3");
+        var blockedRoot = workspace.CreateDirectory("blocked");
+        var s0File = workspace.CreateOldFile(Path.Combine("s0", "s0.tmp"), "0");
+        var s1File = workspace.CreateOldFile(Path.Combine("s1", "s1.tmp"), "1");
+        var s2File = workspace.CreateOldFile(Path.Combine("s2", "s2.tmp"), "2");
+        var s3File = workspace.CreateOldFile(Path.Combine("s3", "s3.tmp"), "3");
+        var blockedFile = workspace.CreateOldFile(Path.Combine("blocked", "blocked.tmp"), "4");
+        var quick = CreateQuickCleaner(workspace.LogsPath);
+
+        var result = quick.Run(
+            [
+                CreateRule("r.s0", RiskLevel.S0VeryLowRisk, s0Root),
+                CreateRule("r.s1", RiskLevel.S1LowRisk, s1Root),
+                CreateRule("r.s2", RiskLevel.S2ReviewRequired, s2Root),
+                CreateRule("r.s3", RiskLevel.S3DoNotCleanAutomatically, s3Root),
+                CreateRule("r.blocked", RiskLevel.Blocked, blockedRoot)
+            ],
+            dryRun: false,
+            now: DateTimeOffset.UtcNow);
+
+        Assert.False(File.Exists(s0File));
+        Assert.True(File.Exists(s1File));
+        Assert.True(File.Exists(s2File));
+        Assert.True(File.Exists(s3File));
+        Assert.True(File.Exists(blockedFile));
+        Assert.Equal(1, result.DeletedCount);
+        Assert.Equal(4, result.SkippedCount);
+    }
+
+    [Fact]
+    public void RecommendedCleanupRequiresExplicitConfirmation()
+    {
+        using var workspace = TestWorkspace.Create();
+        var root = workspace.CreateDirectory("s1");
+        var file = workspace.CreateOldFile(Path.Combine("s1", "cache.tmp"), "123");
+        var service = CreateRecommendedService(workspace.LogsPath);
+
+        var result = service.Clean(
+            [CreateRule("r.s1", RiskLevel.S1LowRisk, root)],
+            confirmedByUser: false,
+            dryRun: false,
+            now: DateTimeOffset.UtcNow);
+
+        Assert.True(File.Exists(file));
+        Assert.Equal(0, result.DeletedCount);
+        Assert.Equal(1, result.SkippedCount);
+    }
+
+    [Fact]
+    public void RecommendedCleanupExecutesOnlyS1AndSkipsS2S3AndBlocked()
+    {
+        using var workspace = TestWorkspace.Create();
+        var s1Root = workspace.CreateDirectory("s1");
+        var s2Root = workspace.CreateDirectory("s2");
+        var s3Root = workspace.CreateDirectory("s3");
+        var blockedRoot = workspace.CreateDirectory("blocked");
+        var s1File = workspace.CreateOldFile(Path.Combine("s1", "s1.tmp"), "1");
+        var s2File = workspace.CreateOldFile(Path.Combine("s2", "s2.tmp"), "2");
+        var s3File = workspace.CreateOldFile(Path.Combine("s3", "s3.tmp"), "3");
+        var blockedFile = workspace.CreateOldFile(Path.Combine("blocked", "blocked.tmp"), "4");
+        var service = CreateRecommendedService(workspace.LogsPath);
+
+        var result = service.Clean(
+            [
+                CreateRule("r.s1", RiskLevel.S1LowRisk, s1Root),
+                CreateRule("r.s2", RiskLevel.S2ReviewRequired, s2Root),
+                CreateRule("r.s3", RiskLevel.S3DoNotCleanAutomatically, s3Root),
+                CreateRule("r.blocked", RiskLevel.Blocked, blockedRoot)
+            ],
+            confirmedByUser: true,
+            dryRun: false,
+            now: DateTimeOffset.UtcNow);
+
+        Assert.False(File.Exists(s1File));
+        Assert.True(File.Exists(s2File));
+        Assert.True(File.Exists(s3File));
+        Assert.True(File.Exists(blockedFile));
+        Assert.Equal(1, result.DeletedCount);
+        Assert.Equal(3, result.SkippedCount);
+    }
+
+    [Fact]
+    public void S3AndBlockedAreNeverDeletedInAnyCleanupMode()
+    {
+        using var workspace = TestWorkspace.Create();
+        var s3Root = workspace.CreateDirectory("s3");
+        var blockedRoot = workspace.CreateDirectory("blocked");
+        var s3File = workspace.CreateOldFile(Path.Combine("s3", "s3.tmp"), "3");
+        var blockedFile = workspace.CreateOldFile(Path.Combine("blocked", "blocked.tmp"), "4");
+        var quick = CreateQuickCleaner(workspace.LogsPath);
+        var recommended = CreateRecommendedService(workspace.LogsPath);
+
+        var quickResult = quick.Run(
+            [
+                CreateRule("r.s3", RiskLevel.S3DoNotCleanAutomatically, s3Root),
+                CreateRule("r.blocked", RiskLevel.Blocked, blockedRoot)
+            ],
+            dryRun: false,
+            now: DateTimeOffset.UtcNow);
+
+        var recommendedResult = recommended.Clean(
+            [
+                CreateRule("r.s3", RiskLevel.S3DoNotCleanAutomatically, s3Root),
+                CreateRule("r.blocked", RiskLevel.Blocked, blockedRoot)
+            ],
+            confirmedByUser: true,
+            dryRun: false,
+            now: DateTimeOffset.UtcNow);
+
+        Assert.True(File.Exists(s3File));
+        Assert.True(File.Exists(blockedFile));
+        Assert.Equal(0, quickResult.DeletedCount);
+        Assert.Equal(0, recommendedResult.DeletedCount);
+    }
+
+    [Fact]
+    public void DeepSpaceAnalysisNeverDeletesFiles()
+    {
+        using var workspace = TestWorkspace.Create();
+        var file = workspace.CreateOldFile(Path.Combine("scan", "large.bin"), new string('A', 2048));
+        var analyzer = new DeepSpaceAnalyzer(new ProtectedPathPolicy([]));
+        var options = new DeepSpaceAnalysisOptions
+        {
+            RootPaths = [workspace.Root],
+            LargeFileThresholdBytes = 1024,
+            LargeFolderThresholdBytes = 4096,
+            FileTypeSummaryThresholdBytes = 4096,
+            OldArchiveAge = TimeSpan.FromDays(1),
+            MaxDepth = 5,
+            MaxResults = 20
+        };
+
+        var result = analyzer.Analyze(options, DateTimeOffset.UtcNow);
+
+        Assert.NotEmpty(result);
+        Assert.True(File.Exists(file));
+    }
+
+    [Fact]
+    public void QuickSafeCleanSkipsGameLauncherS1Rules()
+    {
+        using var workspace = TestWorkspace.Create();
+        var steamRoot = workspace.CreateDirectory("steam-httpcache");
+        var steamFile = workspace.CreateOldFile(Path.Combine("steam-httpcache", "cache.tmp"), "launcher-cache");
+        var quick = CreateQuickCleaner(workspace.LogsPath);
+
+        var result = quick.Run(
+            [
+                new CleanupRule(
+                    "cp.s1.steam-httpcache",
+                    "Steam launcher HTTP cache",
+                    RiskLevel.S1LowRisk,
+                    [steamRoot],
+                    ["*.tmp"],
+                    [],
+                    TimeSpan.FromDays(1),
+                    "Steam launcher cache",
+                    LauncherName: "Steam",
+                    ProcessGuardNames: ["steam", "steamwebhelper"])
+            ],
+            dryRun: false,
+            now: DateTimeOffset.UtcNow);
+
+        Assert.True(File.Exists(steamFile));
+        Assert.Equal(0, result.DeletedCount);
+        Assert.Equal(1, result.SkippedCount);
+    }
+
+    [Fact]
+    public void RecommendationLabelCannotMakeS2OrBlockedTargetsDeletable()
+    {
+        using var workspace = TestWorkspace.Create();
+        var s2Root = workspace.CreateDirectory("s2");
+        var blockedRoot = workspace.CreateDirectory("blocked");
+        var s2File = workspace.CreateOldFile(Path.Combine("s2", "s2.tmp"), "2");
+        var blockedFile = workspace.CreateOldFile(Path.Combine("blocked", "blocked.tmp"), "4");
+        var recommended = CreateRecommendedService(workspace.LogsPath);
+
+        var result = recommended.Clean(
+            [
+                CreateRule("cp.s0.user-temp", RiskLevel.S2ReviewRequired, s2Root),
+                CreateRule("cp.s0.user-temp", RiskLevel.Blocked, blockedRoot)
+            ],
+            confirmedByUser: true,
+            dryRun: false,
+            now: DateTimeOffset.UtcNow);
+
+        Assert.True(File.Exists(s2File));
+        Assert.True(File.Exists(blockedFile));
+        Assert.Equal(0, result.DeletedCount);
+        Assert.Equal(2, result.SkippedCount);
+    }
+
+    private static QuickSafeCleaner CreateQuickCleaner(string logPath)
+    {
+        var protectedPathPolicy = new ProtectedPathPolicy([]);
+        var pathSafetyEngine = new PathSafetyEngine(protectedPathPolicy);
+        return new QuickSafeCleaner(
+            new CleanupFileScanner(protectedPathPolicy),
+            new CleanupLogStore(logPath),
+            pathSafetyEngine);
+    }
+
+    private static RecommendedCleanupService CreateRecommendedService(string logPath)
+    {
+        var protectedPathPolicy = new ProtectedPathPolicy([]);
+        var scanner = new CleanupScanner(protectedPathPolicy);
+        var fileScanner = new CleanupFileScanner(protectedPathPolicy);
+        var executor = new CleanupExecutor(fileScanner, new CleanupLogStore(logPath), new PathSafetyEngine(protectedPathPolicy));
+        return new RecommendedCleanupService(scanner, executor);
+    }
+
+    private static CleanupRule CreateRule(string ruleId, RiskLevel riskLevel, string root)
+    {
+        return new CleanupRule(
+            ruleId,
+            "Test files",
+            riskLevel,
+            [root],
+            ["*.tmp", "*.bin"],
+            [],
+            TimeSpan.FromDays(1),
+            "Test rule.");
+    }
+
+    private sealed class TestWorkspace : IDisposable
+    {
+        private TestWorkspace(string root)
+        {
+            Root = root;
+            LogsPath = Path.Combine(root, "logs");
+        }
+
+        public string Root { get; }
+
+        public string LogsPath { get; }
+
+        public static TestWorkspace Create()
+        {
+            var root = Path.Combine(Path.GetTempPath(), "ClearPilot.Tests", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            return new TestWorkspace(root);
+        }
+
+        public string CreateDirectory(string relativePath)
+        {
+            var path = Path.Combine(Root, relativePath);
+            Directory.CreateDirectory(path);
+            return path;
+        }
+
+        public string CreateOldFile(string relativePath, string content)
+        {
+            var path = Path.Combine(Root, relativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, content);
+            File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddDays(-2));
+            return path;
+        }
+
+        public void Dispose()
+        {
+            try
+            {
+                Directory.Delete(Root, recursive: true);
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+        }
+    }
+}

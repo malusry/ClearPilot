@@ -11,6 +11,13 @@ public static class DeepSpaceAdviceFormatter
             return item.Explanation;
         }
 
+        if (item.AdviceKey == DeepSpaceAdviceKey.WindowsSystemManagedArea)
+        {
+            return IsGameLauncherReviewItem(item)
+                ? "这是游戏启动器相关的复核项。删除可能影响下载状态、着色器缓存重建或启动器状态。ClearPilot 仅分析，不会删除。"
+                : "这是 Windows 管理的系统缓存或维护区域。ClearPilot 仅分析，不会删除。";
+        }
+
         var subject = string.IsNullOrWhiteSpace(item.AdviceSubject) ? "此类型文件" : item.AdviceSubject;
         return item.AdviceKey switch
         {
@@ -57,6 +64,13 @@ public static class DeepSpaceAdviceFormatter
             return item.SuggestedAction;
         }
 
+        if (item.AdviceKey == DeepSpaceAdviceKey.WindowsSystemManagedArea)
+        {
+            return IsGameLauncherReviewItem(item)
+                ? "请先复核大小与近期活动。如需处理，请在启动器关闭后使用启动器自带维护流程，不要直接删除。"
+                : "请使用 Windows 设置、存储感知或磁盘清理处理，不要直接删除这些系统管理区域。";
+        }
+
         return item.AdviceKey switch
         {
             DeepSpaceAdviceKey.NodeModules => "打开项目目录，确认 package manifest 存在且依赖可重新安装后，再手动删除 node_modules。",
@@ -93,5 +107,60 @@ public static class DeepSpaceAdviceFormatter
             DeepSpaceAdviceKey.GenericFileTypeSummary => "打开扫描根目录，手动复查这种文件类型；ClearPilot 只报告合计大小。",
             _ => item.SuggestedAction
         };
+    }
+
+    public static string FormatPossibleImpact(Language language, DeepSpaceItem item, string possibleImpact)
+    {
+        if (language != Language.SimplifiedChinese)
+        {
+            return possibleImpact;
+        }
+
+        if (item.AdviceKey == DeepSpaceAdviceKey.WindowsSystemManagedArea)
+        {
+            return IsGameLauncherReviewItem(item)
+                ? "手动处理可能导致着色器重新编译、下载恢复异常，或影响启动器后续状态。"
+                : "手动删除可能干扰 Windows 更新、诊断或维护状态。";
+        }
+
+        return item.AdviceKey switch
+        {
+            DeepSpaceAdviceKey.NodeModules => "清理后项目依赖会在下次安装时重新下载，首次安装或构建可能变慢。",
+            DeepSpaceAdviceKey.PythonVirtualEnvironment => "清理后需要重新创建虚拟环境并重装依赖，短期内会增加环境准备时间。",
+            DeepSpaceAdviceKey.FrontendFrameworkOutput => "清理后下次启动开发服务器或构建时，前端产物会重新生成。",
+            DeepSpaceAdviceKey.VideoFile or DeepSpaceAdviceKey.DiskImage => "删除后可能无法恢复原始媒体内容，除非你已有可靠备份。",
+            _ => "影响取决于所属应用或工作流，处理前请先确认。"
+        };
+    }
+
+    public static string FormatSafetyNote(Language language, DeepSpaceItem item, string safetyNote)
+    {
+        if (language != Language.SimplifiedChinese)
+        {
+            return safetyNote;
+        }
+
+        if (item.AdviceKey == DeepSpaceAdviceKey.WindowsSystemManagedArea)
+        {
+            return IsGameLauncherReviewItem(item)
+                ? "仅分析，不清理。请避免在下载、更新或启动器运行期间处理该目录。"
+                : "仅分析，不清理。请使用 Windows 设置、存储感知或磁盘清理。";
+        }
+
+        return item.AdviceKey switch
+        {
+            DeepSpaceAdviceKey.VideoFile or DeepSpaceAdviceKey.DiskImage or DeepSpaceAdviceKey.Archive or DeepSpaceAdviceKey.GenericArchiveOrInstaller
+                => "这类文件通常可能是用户数据或归档内容，ClearPilot 不会自动删除。",
+            DeepSpaceAdviceKey.NodeModules or DeepSpaceAdviceKey.PythonVirtualEnvironment or DeepSpaceAdviceKey.FrontendFrameworkOutput
+                => "建议仅在确认项目可重建且当前无活跃开发任务时处理。",
+            _ => "仅分析，不清理。ClearPilot 不会自动删除该项。"
+        };
+    }
+
+    private static bool IsGameLauncherReviewItem(DeepSpaceItem item)
+    {
+        return item.Type == DeepSpaceItemType.GameLauncherReviewArea
+            || item.TargetId.Contains("steam-shadercache", StringComparison.OrdinalIgnoreCase)
+            || item.TargetId.Contains("steam-depotcache", StringComparison.OrdinalIgnoreCase);
     }
 }

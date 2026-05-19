@@ -1,5 +1,6 @@
 using ClearPilot.Core.Logging;
 using ClearPilot.Core.Rules;
+using ClearPilot.Core.Safety;
 using ClearPilot.Core.Scanning;
 
 namespace ClearPilot.Core.Cleanup;
@@ -10,7 +11,15 @@ public sealed class QuickSafeCleaner
 
     public QuickSafeCleaner(CleanupFileScanner fileScanner, CleanupLogStore logStore)
     {
-        executor = new CleanupExecutor(fileScanner, logStore);
+        executor = new CleanupExecutor(
+            fileScanner,
+            logStore,
+            new PathSafetyEngine(ProtectedPathPolicy.CreateDefault()));
+    }
+
+    public QuickSafeCleaner(CleanupFileScanner fileScanner, CleanupLogStore logStore, PathSafetyEngine pathSafetyEngine)
+    {
+        executor = new CleanupExecutor(fileScanner, logStore, pathSafetyEngine);
     }
 
     public CleanupRunResult Run(IEnumerable<CleanupRule> rules, bool dryRun, DateTimeOffset now)

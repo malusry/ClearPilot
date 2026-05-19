@@ -46,11 +46,22 @@ public sealed class DeepSpaceAnalyzer
         "vendor"
     };
 
+    private static readonly IReadOnlyList<ReviewOnlyAreaDefinition> DefaultReviewOnlyAreaDefinitions = CreateDefaultReviewOnlyAreaDefinitions();
+
     private readonly ProtectedPathPolicy protectedPathPolicy;
+    private readonly IReadOnlyList<ReviewOnlyAreaDefinition> reviewOnlyAreaDefinitions;
 
     public DeepSpaceAnalyzer(ProtectedPathPolicy protectedPathPolicy)
+        : this(protectedPathPolicy, null)
+    {
+    }
+
+    public DeepSpaceAnalyzer(
+        ProtectedPathPolicy protectedPathPolicy,
+        IReadOnlyList<ReviewOnlyAreaDefinition>? reviewOnlyAreaDefinitions)
     {
         this.protectedPathPolicy = protectedPathPolicy;
+        this.reviewOnlyAreaDefinitions = reviewOnlyAreaDefinitions ?? DefaultReviewOnlyAreaDefinitions;
     }
 
     public IReadOnlyList<DeepSpaceItem> Analyze(DeepSpaceAnalysisOptions options, DateTimeOffset now)
@@ -62,6 +73,8 @@ public sealed class DeepSpaceAnalyzer
     {
         var buckets = new AnalysisBuckets();
         var visitedDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var systemManagedRoots = reviewOnlyAreaDefinitions
+            .ToDictionary(definition => definition.Path, definition => definition, StringComparer.OrdinalIgnoreCase);
 
         foreach (var root in options.RootPaths.Where(path => !string.IsNullOrWhiteSpace(path)).Distinct(StringComparer.OrdinalIgnoreCase))
         {
@@ -72,6 +85,17 @@ public sealed class DeepSpaceAnalyzer
             }
             catch (ArgumentException)
             {
+                continue;
+            }
+
+            if (systemManagedRoots.TryGetValue(normalizedRoot, out var reviewOnlyArea))
+            {
+                var item = AnalyzeReviewOnlyArea(normalizedRoot, reviewOnlyArea, buckets);
+                if (item is not null)
+                {
+                    buckets.Items.Add(item);
+                }
+
                 continue;
             }
 
@@ -106,7 +130,7 @@ public sealed class DeepSpaceAnalyzer
 
     public static DeepSpaceAnalysisOptions CreateDefaultOptions()
     {
-        var roots = GetDefaultUserControlledRoots();
+        var roots = GetDefaultScanRoots();
         return new DeepSpaceAnalysisOptions
         {
             RootPaths = roots,
@@ -276,6 +300,65 @@ public sealed class DeepSpaceAnalyzer
         return new DirectoryScanSummary(sizeBytes, lastWriteTime);
     }
 
+    private DeepSpaceItem? AnalyzeReviewOnlyArea(
+        string rootPath,
+        ReviewOnlyAreaDefinition definition,
+        AnalysisBuckets buckets)
+    {
+        if (protectedPathPolicy.IsBlocked(rootPath) || ClearPilotInternalPathPolicy.IsInternalArtifact(rootPath))
+        {
+            return null;
+        }
+
+        long sizeBytes;
+        DateTimeOffset? lastWriteTime;
+
+        if (File.Exists(rootPath))
+        {
+            try
+            {
+                var file = new FileInfo(rootPath);
+                sizeBytes = file.Length;
+                lastWriteTime = new DateTimeOffset(file.LastWriteTimeUtc, TimeSpan.Zero);
+                buckets.ScannedRootCount++;
+                buckets.ScannedFileCount++;
+            }
+            catch (IOException)
+            {
+                return null;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return null;
+            }
+        }
+        else if (Directory.Exists(rootPath))
+        {
+            buckets.ScannedRootCount++;
+            buckets.ScannedDirectoryCount++;
+            var summary = CalculateDirectorySummary(rootPath, buckets);
+            sizeBytes = summary.SizeBytes;
+            lastWriteTime = summary.LastWriteTime;
+        }
+        else
+        {
+            return null;
+        }
+
+        return new DeepSpaceItem(
+            definition.ItemType,
+            rootPath,
+            sizeBytes,
+            lastWriteTime,
+            RiskLevel.S2ReviewRequired,
+            definition.Explanation,
+            definition.SuggestedAction,
+            DeepSpaceAdviceKey.WindowsSystemManagedArea,
+            definition.TargetId,
+            definition.TargetId,
+            definition.Category);
+    }
+
     private static IReadOnlyList<DeepSpaceItem> CreateFileTypeSummaryItems(
         IReadOnlyDictionary<FileTypeStatKey, FileTypeStat> stats,
         DeepSpaceAnalysisOptions options)
@@ -415,57 +498,70 @@ public sealed class DeepSpaceAnalyzer
         return new DirectoryScanSummary(sizeBytes, latestWriteTime);
     }
 
-    private static IReadOnlyList<string> GetDefaultUserControlledRoots()
+    private static IReadOnlyList<string> GetDefaultScanRoots()
+    {
+        var roots = new List<string>();
+        AddUserControlledAnalysisRoots(roots);
+        AddSystemManagedAnalysisRoots(roots);
+        return roots.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
+    private static void AddUserControlledAnalysisRoots(List<string> roots)
     {
         var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var roots = new List<string>();
 
-        AddIfProvided(roots, Path.GetTempPath());
-        AddIfProvided(roots, Path.Combine(userProfile, "Downloads"));
-        AddIfProvided(roots, Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory));
-        AddIfProvided(roots, Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
-        AddIfProvided(roots, Environment.GetFolderPath(Environment.SpecialFolder.MyPictures));
-        AddIfProvided(roots, Environment.GetFolderPath(Environment.SpecialFolder.MyVideos));
-        AddIfProvided(roots, Environment.GetFolderPath(Environment.SpecialFolder.MyMusic));
-        AddIfProvided(roots, Path.Combine(userProfile, "source"));
-        AddIfProvided(roots, Path.Combine(userProfile, "repos"));
-        AddIfProvided(roots, Path.Combine(userProfile, "Projects"));
-        AddIfProvided(roots, Path.Combine(userProfile, "dev"));
-        AddIfProvided(roots, Path.Combine(userProfile, "workspace"));
-        AddIfProvided(roots, Path.Combine(userProfile, "workspaces"));
-        AddIfProvided(roots, Path.Combine(userProfile, "code"));
-        AddIfProvided(roots, Path.Combine(userProfile, ".cache"));
-        AddIfProvided(roots, Path.Combine(userProfile, ".nuget", "packages"));
-        AddIfProvided(roots, Path.Combine(userProfile, ".gradle", "caches"));
-        AddIfProvided(roots, Path.Combine(userProfile, ".cargo"));
-        AddIfProvided(roots, Path.Combine(userProfile, ".m2", "repository"));
-        AddIfProvided(roots, Path.Combine(userProfile, "go", "pkg", "mod", "cache", "download"));
-        AddIfProvided(roots, Path.Combine(localAppData, "CrashDumps"));
-        AddIfProvided(roots, Path.Combine(localAppData, "Microsoft", "Windows", "WER"));
-        AddIfProvided(roots, Path.Combine(localAppData, "D3DSCache"));
-        AddIfProvided(roots, Path.Combine(localAppData, "NVIDIA", "DXCache"));
-        AddIfProvided(roots, Path.Combine(localAppData, "NVIDIA", "GLCache"));
-        AddIfProvided(roots, Path.Combine(localAppData, "AMD", "DxCache"));
-        AddIfProvided(roots, Path.Combine(localAppData, "AMD", "GLCache"));
-        AddIfProvided(roots, Path.Combine(localAppData, "go-build"));
-        AddIfProvided(roots, Path.Combine(localAppData, "npm-cache"));
-        AddIfProvided(roots, Path.Combine(localAppData, "pnpm", "store"));
-        AddIfProvided(roots, Path.Combine(localAppData, "Yarn", "Cache"));
-        AddIfProvided(roots, Path.Combine(localAppData, "pip", "Cache"));
-        AddIfProvided(roots, Path.Combine(localAppData, "deno"));
-
-        return roots
-            .Where(Directory.Exists)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        AddIfExistingDirectoryOrFile(roots, Path.GetTempPath());
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(userProfile, "Downloads"));
+        AddIfExistingDirectoryOrFile(roots, Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory));
+        AddIfExistingDirectoryOrFile(roots, Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
+        AddIfExistingDirectoryOrFile(roots, Environment.GetFolderPath(Environment.SpecialFolder.MyPictures));
+        AddIfExistingDirectoryOrFile(roots, Environment.GetFolderPath(Environment.SpecialFolder.MyVideos));
+        AddIfExistingDirectoryOrFile(roots, Environment.GetFolderPath(Environment.SpecialFolder.MyMusic));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(userProfile, "source"));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(userProfile, "repos"));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(userProfile, "Projects"));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(userProfile, "dev"));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(userProfile, "workspace"));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(userProfile, "workspaces"));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(userProfile, "code"));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(userProfile, ".cache"));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(userProfile, ".nuget", "packages"));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(userProfile, ".gradle", "caches"));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(userProfile, ".cargo"));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(userProfile, ".m2", "repository"));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(userProfile, "go", "pkg", "mod", "cache", "download"));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(localAppData, "CrashDumps"));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(localAppData, "Microsoft", "Windows", "WER"));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(localAppData, "D3DSCache"));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(localAppData, "NVIDIA", "DXCache"));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(localAppData, "NVIDIA", "GLCache"));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(localAppData, "AMD", "DxCache"));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(localAppData, "AMD", "GLCache"));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(localAppData, "go-build"));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(localAppData, "npm-cache"));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(localAppData, "pnpm", "store"));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(localAppData, "Yarn", "Cache"));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(localAppData, "pip", "Cache"));
+        AddIfExistingDirectoryOrFile(roots, Path.Combine(localAppData, "deno"));
     }
 
-    private static void AddIfProvided(List<string> roots, string path)
+    private static void AddSystemManagedAnalysisRoots(List<string> roots)
+    {
+        foreach (var definition in DefaultReviewOnlyAreaDefinitions)
+        {
+            AddIfExistingDirectoryOrFile(roots, definition.Path);
+        }
+    }
+
+    private static void AddIfExistingDirectoryOrFile(List<string> roots, string path)
     {
         if (!string.IsNullOrWhiteSpace(path))
         {
-            roots.Add(path);
+            if (Directory.Exists(path) || File.Exists(path))
+            {
+                roots.Add(path);
+            }
         }
     }
 
@@ -760,6 +856,138 @@ public sealed class DeepSpaceAnalyzer
         return left > right ? left : right;
     }
 
+    private static IReadOnlyList<ReviewOnlyAreaDefinition> CreateDefaultReviewOnlyAreaDefinitions()
+    {
+        var windowsRoot = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+        var windowsDriveRoot = string.IsNullOrWhiteSpace(windowsRoot)
+            ? string.Empty
+            : Path.GetPathRoot(windowsRoot) ?? string.Empty;
+        var definitions = new List<ReviewOnlyAreaDefinition>();
+
+        AddReviewOnlyDefinitionIfProvided(
+            definitions,
+            "cp.s2.windows-update-download",
+            "Windows Update download cache (analysis-only)",
+            CombineIfBaseProvided(windowsRoot, "SoftwareDistribution", "Download"));
+
+        AddReviewOnlyDefinitionIfProvided(
+            definitions,
+            "cp.s2.delivery-optimization-cache",
+            "Delivery Optimization cache (analysis-only)",
+            CombineIfBaseProvided(programData, "Microsoft", "Windows", "DeliveryOptimization", "Cache"));
+
+        AddReviewOnlyDefinitionIfProvided(
+            definitions,
+            "cp.s2.cbs-logs",
+            "CBS logs (analysis-only)",
+            CombineIfBaseProvided(windowsRoot, "Logs", "CBS"));
+
+        AddReviewOnlyDefinitionIfProvided(
+            definitions,
+            "cp.s2.dism-logs",
+            "DISM logs (analysis-only)",
+            CombineIfBaseProvided(windowsRoot, "Logs", "DISM"));
+
+        AddReviewOnlyDefinitionIfProvided(
+            definitions,
+            "cp.s2.memory-dump",
+            "System memory dump (analysis-only)",
+            CombineIfBaseProvided(windowsRoot, "MEMORY.DMP"));
+
+        AddReviewOnlyDefinitionIfProvided(
+            definitions,
+            "cp.s2.minidump",
+            "Windows minidump folder (analysis-only)",
+            CombineIfBaseProvided(windowsRoot, "Minidump"));
+
+        AddReviewOnlyDefinitionIfProvided(
+            definitions,
+            "cp.s2.windows-old",
+            "Windows.old folder (analysis-only)",
+            CombineIfBaseProvided(windowsDriveRoot, "Windows.old"));
+
+        var steamRoots = GetSteamLauncherRoots(localAppData, programFiles, programFilesX86);
+        foreach (var steamRoot in steamRoots)
+        {
+            AddReviewOnlyDefinitionIfProvided(
+                definitions,
+                "cp.s2.steam-shadercache",
+                "Steam shader cache (analysis-only)",
+                CombineIfBaseProvided(steamRoot, "steamapps", "shadercache"),
+                DeepSpaceItemType.GameLauncherReviewArea,
+                "Launcher-managed game shader cache. ClearPilot reports it as review-only because cleanup can trigger expensive shader recompilation.",
+                "Review size and recent activity first. If you choose to clean it, use Steam or launcher-native maintenance while Steam is closed.");
+
+            AddReviewOnlyDefinitionIfProvided(
+                definitions,
+                "cp.s2.steam-depotcache",
+                "Steam depot cache (analysis-only)",
+                CombineIfBaseProvided(steamRoot, "depotcache"),
+                DeepSpaceItemType.GameLauncherReviewArea,
+                "Launcher download/depot cache may include resumable or in-progress game content. ClearPilot reports this as review-only.",
+                "Review manually and prefer Steam's own maintenance flows. Do not remove while downloads or updates may resume.");
+        }
+
+        return definitions;
+    }
+
+    private static void AddReviewOnlyDefinitionIfProvided(
+        List<ReviewOnlyAreaDefinition> definitions,
+        string targetId,
+        string category,
+        string path,
+        DeepSpaceItemType itemType = DeepSpaceItemType.SystemManagedWindowsArea,
+        string? explanation = null,
+        string? suggestedAction = null)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        string normalizedPath;
+        try
+        {
+            normalizedPath = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        }
+        catch (ArgumentException)
+        {
+            return;
+        }
+
+        definitions.Add(new ReviewOnlyAreaDefinition(
+            targetId,
+            category,
+            normalizedPath,
+            explanation ?? "System-managed Windows cleanup area. ClearPilot reports this as review-only and does not delete it.",
+            suggestedAction ?? "Use Windows Settings Storage, Storage Sense, Disk Cleanup, or built-in maintenance tools instead of direct deletion.",
+            itemType));
+    }
+
+    private static IReadOnlyList<string> GetSteamLauncherRoots(string localAppData, string programFiles, string programFilesX86)
+    {
+        return new[]
+            {
+                CombineIfBaseProvided(programFiles, "Steam"),
+                CombineIfBaseProvided(programFilesX86, "Steam"),
+                CombineIfBaseProvided(localAppData, "Steam")
+            }
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static string CombineIfBaseProvided(string basePath, params string[] segments)
+    {
+        return string.IsNullOrWhiteSpace(basePath)
+            ? string.Empty
+            : Path.Combine(new[] { basePath }.Concat(segments).ToArray());
+    }
+
     private sealed class AnalysisBuckets
     {
         public List<DeepSpaceItem> Items { get; } = [];
@@ -781,4 +1009,12 @@ public sealed class DeepSpaceAnalyzer
     private readonly record struct FileTypeStatKey(string RootPath, string Extension);
 
     private readonly record struct FileTypeStat(long SizeBytes, DateTimeOffset? LastWriteTime);
+
+    public sealed record ReviewOnlyAreaDefinition(
+        string TargetId,
+        string Category,
+        string Path,
+        string Explanation,
+        string SuggestedAction,
+        DeepSpaceItemType ItemType = DeepSpaceItemType.SystemManagedWindowsArea);
 }

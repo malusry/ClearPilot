@@ -23,10 +23,20 @@ public static class RuleCatalog
             TimeSpan.FromDays(1),
             "Temporary files owned by the current user. Recently modified files are skipped."));
 
+        AddIfPathProvided(rules, GetWindowsTempRoot(paths.Windows), root => new CleanupRule(
+            "cp.s1.windows-temp",
+            "Windows temporary files (accessible scope)",
+            RiskLevel.S1LowRisk,
+            [root],
+            ["*"],
+            ["ClearPilot", "ClearPilot.Tests"],
+            TimeSpan.FromDays(1),
+            "Windows temporary files in accessible non-admin scope. Cleaning may remove temporary installer or diagnostics leftovers."));
+
         AddIfPathProvided(rules, Path.Combine(paths.LocalAppData, "CrashDumps"), root => new CleanupRule(
-            "cp.s0.user-crash-dumps",
+            "cp.s1.user-crash-dumps",
             "Current user crash dumps",
-            RiskLevel.S0VeryLowRisk,
+            RiskLevel.S1LowRisk,
             [root],
             ["*.dmp", "*.mdmp"],
             [],
@@ -42,6 +52,201 @@ public static class RuleCatalog
             [],
             TimeSpan.FromDays(14),
             "Old user-mode Windows Error Reporting files. They are mainly useful for diagnostics and can be recreated by future crashes."));
+
+        AddIfAnyRootProvided(rules, GetInternetCacheRoots(paths.LocalAppData), roots => new CleanupRule(
+            "cp.s1.windows-inet-cache",
+            "Windows internet temporary cache",
+            RiskLevel.S1LowRisk,
+            roots,
+            ["*"],
+            [
+                "Cookies",
+                "History",
+                "Sessions",
+                "Login Data",
+                "Web Data",
+                "Bookmarks",
+                "Local Storage",
+                "IndexedDB",
+                "Session Storage",
+                "User Data",
+                "Profiles"
+            ],
+            TimeSpan.FromDays(1),
+            "Temporary web cache files under Windows internet cache directories. Identity, session, and profile data are excluded."));
+
+        AddIfAnyRootProvided(rules, GetMicrosoftStoreLocalCacheRoots(paths.LocalAppData), roots => new CleanupRule(
+            "cp.s1.msstore-localcache",
+            "Microsoft Store package LocalCache",
+            RiskLevel.S1LowRisk,
+            roots,
+            ["*"],
+            [
+                "LocalState",
+                "RoamingState",
+                "Settings",
+                "SystemAppData",
+                "TempState",
+                "AC"
+            ],
+            TimeSpan.FromDays(1),
+            "Per-package LocalCache folders used by Microsoft Store apps. Durable app state and settings paths are excluded."));
+
+        AddIfAnyRootProvided(rules, GetSteamHttpCacheRoots(paths), roots => new CleanupRule(
+            "cp.s1.steam-httpcache",
+            "Steam launcher HTTP cache",
+            RiskLevel.S1LowRisk,
+            roots,
+            ["*"],
+            ["steamapps", "common", "downloading", "workshop", "userdata", "config", "manifests"],
+            TimeSpan.FromDays(1),
+            "Steam launcher HTTP cache files. Installed games, workshop content, and account/config data are excluded.",
+            LauncherName: "Steam",
+            ProcessGuardNames: ["steam", "steamwebhelper"]));
+
+        AddIfAnyRootProvided(rules, GetSteamLogsRoots(paths), roots => new CleanupRule(
+            "cp.s1.steam-logs",
+            "Steam launcher logs",
+            RiskLevel.S1LowRisk,
+            roots,
+            ["*.log", "*.txt", "*.old"],
+            ["steamapps", "common", "downloading", "workshop", "userdata", "config", "manifests"],
+            TimeSpan.FromDays(1),
+            "Steam launcher logs useful for troubleshooting but usually safe to clear after review.",
+            LauncherName: "Steam",
+            ProcessGuardNames: ["steam", "steamwebhelper"]));
+
+        AddIfAnyRootProvided(rules, GetSteamDumpRoots(paths), roots => new CleanupRule(
+            "cp.s1.steam-dumps",
+            "Steam launcher dump files",
+            RiskLevel.S1LowRisk,
+            roots,
+            ["*.dmp", "*.mdmp", "*.tmp"],
+            ["steamapps", "common", "downloading", "workshop", "userdata", "config", "manifests"],
+            TimeSpan.FromDays(1),
+            "Steam launcher dump files generated for crash diagnostics.",
+            LauncherName: "Steam",
+            ProcessGuardNames: ["steam", "steamwebhelper"]));
+
+        AddIfAnyRootProvided(rules, GetEpicWebCacheRoots(paths.LocalAppData), roots => new CleanupRule(
+            "cp.s1.epic-webcache",
+            "Epic Games Launcher web cache",
+            RiskLevel.S1LowRisk,
+            roots,
+            ["*"],
+            ["Cookies", "History", "Sessions", "Login Data", "Web Data", "Bookmarks", "Local Storage", "IndexedDB", "Session Storage", "Manifests"],
+            TimeSpan.FromDays(1),
+            "Epic Games Launcher web/UI cache under Saved\\webcache*. Identity and session state are excluded.",
+            LauncherName: "Epic Games Launcher",
+            ProcessGuardNames: ["EpicGamesLauncher"]));
+
+        AddIfPathProvided(rules, Path.Combine(paths.LocalAppData, "EpicGamesLauncher", "Saved", "Logs"), root => new CleanupRule(
+            "cp.s1.epic-logs",
+            "Epic Games Launcher logs",
+            RiskLevel.S1LowRisk,
+            [root],
+            ["*.log", "*.txt"],
+            ["Manifests", "Config"],
+            TimeSpan.FromDays(1),
+            "Epic Games Launcher diagnostic logs.",
+            LauncherName: "Epic Games Launcher",
+            ProcessGuardNames: ["EpicGamesLauncher"]));
+
+        AddIfAnyRootProvided(rules, GetBattleNetCacheRoots(paths.LocalAppData), roots => new CleanupRule(
+            "cp.s1.battlenet-cache",
+            "Battle.net launcher cache",
+            RiskLevel.S1LowRisk,
+            roots,
+            ["*"],
+            ["Data", "Manifests", "Config", "Cookies", "History", "Sessions", "Login Data", "Local Storage", "IndexedDB", "Session Storage"],
+            TimeSpan.FromDays(1),
+            "Battle.net launcher cache folders that are clearly cache-scoped.",
+            LauncherName: "Battle.net",
+            ProcessGuardNames: ["Battle.net", "Agent"]));
+
+        AddIfAnyRootProvided(rules, GetBattleNetLogRoots(paths.LocalAppData), roots => new CleanupRule(
+            "cp.s1.battlenet-logs",
+            "Battle.net launcher logs",
+            RiskLevel.S1LowRisk,
+            roots,
+            ["*.log", "*.txt"],
+            ["Data", "Manifests", "Config"],
+            TimeSpan.FromDays(1),
+            "Battle.net launcher logs.",
+            LauncherName: "Battle.net",
+            ProcessGuardNames: ["Battle.net", "Agent"]));
+
+        AddIfAnyRootProvided(rules, GetRiotClientCacheRoots(paths.LocalAppData), roots => new CleanupRule(
+            "cp.s1.riot-client-cache",
+            "Riot Client cache",
+            RiskLevel.S1LowRisk,
+            roots,
+            ["*"],
+            ["Cookies", "History", "Sessions", "Login Data", "Web Data", "Bookmarks", "Local Storage", "IndexedDB", "Session Storage", "Config", "Saves"],
+            TimeSpan.FromDays(1),
+            "Riot Client launcher cache directories only.",
+            LauncherName: "Riot Client",
+            ProcessGuardNames: ["RiotClientServices", "RiotClientUx", "RiotClientUxRender"]));
+
+        AddIfAnyRootProvided(rules, GetRiotClientLogRoots(paths.LocalAppData), roots => new CleanupRule(
+            "cp.s1.riot-client-logs",
+            "Riot Client logs",
+            RiskLevel.S1LowRisk,
+            roots,
+            ["*.log", "*.txt"],
+            ["Config", "Saves", "Manifests"],
+            TimeSpan.FromDays(1),
+            "Riot Client diagnostic logs.",
+            LauncherName: "Riot Client",
+            ProcessGuardNames: ["RiotClientServices", "RiotClientUx", "RiotClientUxRender"]));
+
+        AddIfAnyRootProvided(rules, GetEaAppCacheRoots(paths.LocalAppData), roots => new CleanupRule(
+            "cp.s1.ea-app-cache",
+            "EA App cache",
+            RiskLevel.S1LowRisk,
+            roots,
+            ["*"],
+            ["Cookies", "History", "Sessions", "Login Data", "Web Data", "Bookmarks", "Local Storage", "IndexedDB", "Session Storage", "Config", "Saves"],
+            TimeSpan.FromDays(1),
+            "EA App launcher cache directories only.",
+            LauncherName: "EA App",
+            ProcessGuardNames: ["EADesktop", "EABackgroundService"]));
+
+        AddIfAnyRootProvided(rules, GetEaAppLogRoots(paths.LocalAppData), roots => new CleanupRule(
+            "cp.s1.ea-app-logs",
+            "EA App logs",
+            RiskLevel.S1LowRisk,
+            roots,
+            ["*.log", "*.txt"],
+            ["Config", "Saves", "Manifests"],
+            TimeSpan.FromDays(1),
+            "EA App launcher logs.",
+            LauncherName: "EA App",
+            ProcessGuardNames: ["EADesktop", "EABackgroundService"]));
+
+        AddIfAnyRootProvided(rules, GetUbisoftCacheRoots(paths.LocalAppData), roots => new CleanupRule(
+            "cp.s1.ubisoft-connect-cache",
+            "Ubisoft Connect cache",
+            RiskLevel.S1LowRisk,
+            roots,
+            ["*"],
+            ["Cookies", "History", "Sessions", "Login Data", "Web Data", "Bookmarks", "Local Storage", "IndexedDB", "Session Storage", "Config", "Savegames", "Saves"],
+            TimeSpan.FromDays(1),
+            "Ubisoft Connect launcher cache directories only.",
+            LauncherName: "Ubisoft Connect",
+            ProcessGuardNames: ["UbisoftConnect", "upc"]));
+
+        AddIfAnyRootProvided(rules, GetUbisoftLogRoots(paths.LocalAppData), roots => new CleanupRule(
+            "cp.s1.ubisoft-connect-logs",
+            "Ubisoft Connect logs",
+            RiskLevel.S1LowRisk,
+            roots,
+            ["*.log", "*.txt"],
+            ["Config", "Savegames", "Saves", "Manifests"],
+            TimeSpan.FromDays(1),
+            "Ubisoft Connect launcher logs.",
+            LauncherName: "Ubisoft Connect",
+            ProcessGuardNames: ["UbisoftConnect", "upc"]));
 
         AddIfAnyRootProvided(rules, GetDirectXShaderCacheRoots(paths.LocalAppData), roots => new CleanupRule(
             "cp.s1.directx-shader-cache",
@@ -555,5 +760,189 @@ public static class RuleCatalog
         }
 
         return [Path.Combine(jetBrainsRoot, "caches")];
+    }
+
+    private static string GetWindowsTempRoot(string windowsRoot)
+    {
+        return string.IsNullOrWhiteSpace(windowsRoot)
+            ? string.Empty
+            : Path.Combine(windowsRoot, "Temp");
+    }
+
+    private static IReadOnlyList<string> GetInternetCacheRoots(string localAppData)
+    {
+        var windowsRoot = Path.Combine(localAppData, "Microsoft", "Windows");
+        return
+        [
+            Path.Combine(windowsRoot, "INetCache")
+        ];
+    }
+
+    private static IReadOnlyList<string> GetMicrosoftStoreLocalCacheRoots(string localAppData)
+    {
+        var packagesRoot = Path.Combine(localAppData, "Packages");
+        if (Directory.Exists(packagesRoot))
+        {
+            try
+            {
+                return Directory
+                    .EnumerateDirectories(packagesRoot)
+                    .Select(packageRoot => Path.Combine(packageRoot, "LocalCache"))
+                    .ToArray();
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+        }
+
+        return [];
+    }
+
+    private static IReadOnlyList<string> GetSteamHttpCacheRoots(EnvironmentPaths paths)
+    {
+        return GetSteamLauncherRoots(paths)
+            .Select(root => Path.Combine(root, "appcache", "httpcache"))
+            .ToArray();
+    }
+
+    private static IReadOnlyList<string> GetSteamLogsRoots(EnvironmentPaths paths)
+    {
+        return GetSteamLauncherRoots(paths)
+            .Select(root => Path.Combine(root, "logs"))
+            .ToArray();
+    }
+
+    private static IReadOnlyList<string> GetSteamDumpRoots(EnvironmentPaths paths)
+    {
+        return GetSteamLauncherRoots(paths)
+            .Select(root => Path.Combine(root, "dumps"))
+            .ToArray();
+    }
+
+    private static IReadOnlyList<string> GetSteamLauncherRoots(EnvironmentPaths paths)
+    {
+        return new[]
+        {
+            CombineIfBaseProvided(paths.ProgramFiles, "Steam"),
+            CombineIfBaseProvided(paths.ProgramFilesX86, "Steam"),
+            CombineIfBaseProvided(paths.LocalAppData, "Steam")
+        }
+        .Where(path => !string.IsNullOrWhiteSpace(path))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToArray();
+    }
+
+    private static IReadOnlyList<string> GetEpicWebCacheRoots(string localAppData)
+    {
+        var savedRoot = Path.Combine(localAppData, "EpicGamesLauncher", "Saved");
+        if (Directory.Exists(savedRoot))
+        {
+            try
+            {
+                var discovered = Directory
+                    .EnumerateDirectories(savedRoot)
+                    .Where(path => Path.GetFileName(path).StartsWith("webcache", StringComparison.OrdinalIgnoreCase))
+                    .ToArray();
+
+                if (discovered.Length > 0)
+                {
+                    return discovered;
+                }
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+        }
+
+        return [Path.Combine(savedRoot, "webcache")];
+    }
+
+    private static IReadOnlyList<string> GetBattleNetCacheRoots(string localAppData)
+    {
+        return
+        [
+            Path.Combine(localAppData, "Battle.net", "Cache")
+        ];
+    }
+
+    private static IReadOnlyList<string> GetBattleNetLogRoots(string localAppData)
+    {
+        return
+        [
+            Path.Combine(localAppData, "Battle.net", "Logs")
+        ];
+    }
+
+    private static IReadOnlyList<string> GetRiotClientCacheRoots(string localAppData)
+    {
+        var root = Path.Combine(localAppData, "Riot Games", "Riot Client");
+        return
+        [
+            Path.Combine(root, "Cache"),
+            Path.Combine(root, "Code Cache"),
+            Path.Combine(root, "GPUCache")
+        ];
+    }
+
+    private static IReadOnlyList<string> GetRiotClientLogRoots(string localAppData)
+    {
+        return
+        [
+            Path.Combine(localAppData, "Riot Games", "Riot Client", "Logs")
+        ];
+    }
+
+    private static IReadOnlyList<string> GetEaAppCacheRoots(string localAppData)
+    {
+        var root = Path.Combine(localAppData, "Electronic Arts", "EA Desktop");
+        return
+        [
+            Path.Combine(root, "Cache"),
+            Path.Combine(root, "Code Cache"),
+            Path.Combine(root, "GPUCache")
+        ];
+    }
+
+    private static IReadOnlyList<string> GetEaAppLogRoots(string localAppData)
+    {
+        return
+        [
+            Path.Combine(localAppData, "Electronic Arts", "EA Desktop", "Logs")
+        ];
+    }
+
+    private static IReadOnlyList<string> GetUbisoftCacheRoots(string localAppData)
+    {
+        var root = Path.Combine(localAppData, "Ubisoft Game Launcher");
+        return
+        [
+            Path.Combine(root, "cache"),
+            Path.Combine(root, "Cache")
+        ];
+    }
+
+    private static IReadOnlyList<string> GetUbisoftLogRoots(string localAppData)
+    {
+        return
+        [
+            Path.Combine(localAppData, "Ubisoft Game Launcher", "logs"),
+            Path.Combine(localAppData, "Ubisoft Game Launcher", "Logs")
+        ];
+    }
+
+    private static string CombineIfBaseProvided(string basePath, params string[] segments)
+    {
+        if (string.IsNullOrWhiteSpace(basePath))
+        {
+            return string.Empty;
+        }
+
+        return Path.Combine(new[] { basePath }.Concat(segments).ToArray());
     }
 }

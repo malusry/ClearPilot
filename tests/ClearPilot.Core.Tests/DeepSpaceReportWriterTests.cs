@@ -8,7 +8,7 @@ namespace ClearPilot.Core.Tests;
 public sealed class DeepSpaceReportWriterTests
 {
     [Fact]
-    public void RenderCreatesStructuredEnglishReportWithVisualBreakdown()
+    public void RenderCreatesStructuredEnglishReportWithDecisionAndRecommendationDetails()
     {
         var result = CreateResult();
 
@@ -22,14 +22,20 @@ public sealed class DeepSpaceReportWriterTests
         Assert.Contains("## At a Glance", report);
         Assert.Contains("| Metric | Value |", report);
         Assert.Contains("## Type Breakdown", report);
-        Assert.Contains("`████", report);
+        Assert.Contains("`[", report);
         Assert.Contains("## Top Space Sources", report);
+        Assert.Contains("Decision", report);
+        Assert.Contains("Decision reason", report);
         Assert.Contains("S2 REVIEW", report);
+        Assert.Contains("Recommendation", report);
+        Assert.Contains("Possible impact", report);
+        Assert.Contains("Safety note", report);
         Assert.Contains("Analysis only", report);
+        Assert.False(report.Contains("\u001b[", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void RenderLocalizesExplanationsAndSuggestedActionsInChinese()
+    public void RenderIncludesChineseDecisionLabelsWhenSimplifiedChineseIsSelected()
     {
         var result = CreateResult();
 
@@ -43,9 +49,19 @@ public sealed class DeepSpaceReportWriterTests
         Assert.Contains("## 概览", report);
         Assert.Contains("| 指标 | 值 |", report);
         Assert.Contains("| 排名 | 类型 | 大小 | 位置 |", report);
-        Assert.Contains("视频通常是真实个人数据", report);
-        Assert.Contains("外置存储", report);
-        Assert.Contains("仅分析", report);
+        Assert.Contains("结论", report);
+        Assert.Contains("仅分析，不清理", report);
+        Assert.Contains("说明", report);
+        Assert.Contains("建议操作", report);
+        Assert.Contains("影响", report);
+        Assert.Contains("安全说明", report);
+        Assert.Contains("请使用 Windows 设置、存储感知或磁盘清理", report);
+        Assert.Contains("这是游戏启动器相关的复核项", report);
+        Assert.Contains("着色器缓存", report);
+        Assert.DoesNotContain("Impact depends on the owning app or workflow.", report);
+        Assert.DoesNotContain("Analysis only. ClearPilot will not delete this item.", report);
+        Assert.DoesNotContain("\u001b[", report, StringComparison.Ordinal);
+        Assert.DoesNotContain("\uFFFD", report, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -62,7 +78,9 @@ public sealed class DeepSpaceReportWriterTests
 
         Assert.True(File.Exists(path));
         Assert.EndsWith(".md", path, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Deep Space Analysis Report", File.ReadAllText(path));
+        var content = File.ReadAllText(path);
+        Assert.Contains("Deep Space Analysis Report", content);
+        Assert.False(content.Contains("\u001b[", StringComparison.Ordinal));
     }
 
     private static DeepSpaceAnalysisResult CreateResult()
@@ -88,7 +106,31 @@ public sealed class DeepSpaceReportWriterTests
                 "Old disk image. It may be an installer image, operating system image, or archived media that still matters.",
                 "Mount or inspect the image if unsure, then archive it elsewhere or remove it manually only after confirming it is no longer needed.",
                 DeepSpaceAdviceKey.DiskImage,
-                ".iso")
+                ".iso"),
+            new DeepSpaceItem(
+                DeepSpaceItemType.SystemManagedWindowsArea,
+                "C:\\Windows\\SoftwareDistribution\\Download",
+                512L * 1024 * 1024,
+                new DateTimeOffset(2026, 5, 10, 8, 30, 0, TimeSpan.Zero),
+                RiskLevel.S2ReviewRequired,
+                "System-managed Windows cleanup area. ClearPilot reports this as review-only and does not delete it.",
+                "Use Windows Settings Storage, Storage Sense, Disk Cleanup, or built-in maintenance tools instead of direct deletion.",
+                DeepSpaceAdviceKey.WindowsSystemManagedArea,
+                "cp.s2.windows-update-download",
+                "cp.s2.windows-update-download",
+                "Windows Update download cache (analysis-only)"),
+            new DeepSpaceItem(
+                DeepSpaceItemType.GameLauncherReviewArea,
+                "C:\\Program Files (x86)\\Steam\\steamapps\\shadercache",
+                768L * 1024 * 1024,
+                new DateTimeOffset(2026, 5, 12, 8, 30, 0, TimeSpan.Zero),
+                RiskLevel.S2ReviewRequired,
+                "Launcher-managed game shader cache. ClearPilot reports it as review-only because cleanup can trigger expensive shader recompilation.",
+                "Review size and recent activity first. If you choose to clean it, use Steam or launcher-native maintenance while Steam is closed.",
+                DeepSpaceAdviceKey.WindowsSystemManagedArea,
+                "cp.s2.steam-shadercache",
+                "cp.s2.steam-shadercache",
+                "Steam shader cache (analysis-only)")
         };
 
         return new DeepSpaceAnalysisResult(

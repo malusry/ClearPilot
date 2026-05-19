@@ -33,5 +33,6 @@ public enum DeepSpaceAdviceKey
     ArchiveFileTypeSummary,
     LogFileTypeSummary,
     TemporaryFileTypeSummary,
-    NoExtensionFileTypeSummary
+    NoExtensionFileTypeSummary,
+    WindowsSystemManagedArea
 }

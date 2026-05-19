@@ -46,6 +46,7 @@ public sealed class RecommendedCleanupServiceTests
 
         var result = service.Clean(
             [CreateRule("test.s1.selected", RiskLevel.S1LowRisk, selectedRoot)],
+            confirmedByUser: true,
             dryRun: false,
             now: DateTimeOffset.UtcNow);
 
@@ -70,6 +71,7 @@ public sealed class RecommendedCleanupServiceTests
                 CreateRule("test.s0", RiskLevel.S0VeryLowRisk, s0Root),
                 CreateRule("test.s2", RiskLevel.S2ReviewRequired, s2Root)
             ],
+            confirmedByUser: true,
             dryRun: false,
             now: DateTimeOffset.UtcNow);
 
@@ -84,7 +86,7 @@ public sealed class RecommendedCleanupServiceTests
         var protectedPathPolicy = new ProtectedPathPolicy([]);
         var scanner = new CleanupScanner(protectedPathPolicy);
         var fileScanner = new CleanupFileScanner(protectedPathPolicy);
-        var executor = new CleanupExecutor(fileScanner, new CleanupLogStore(logPath));
+        var executor = new CleanupExecutor(fileScanner, new CleanupLogStore(logPath), new PathSafetyEngine(protectedPathPolicy));
         return new RecommendedCleanupService(scanner, executor);
     }
 

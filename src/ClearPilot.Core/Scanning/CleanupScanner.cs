@@ -27,14 +27,30 @@ public sealed class CleanupScanner
 
             if (files.Count > 0)
             {
+                var estimatedBytes = files.Sum(file => file.SizeBytes);
+                var advice = RecommendationAdvisor.ForRule(rule);
+                var decision = CleanupDecisionAdvisor.ForCandidate(
+                    rule,
+                    advice,
+                    estimatedBytes,
+                    files.Count,
+                    launcherRunning: false);
                 candidates.Add(new CleanupCandidate(
                     rule.RuleId,
                     rule.Category,
+                    rule.LauncherName,
                     string.Join(Path.PathSeparator, rule.RootPaths),
-                    files.Sum(file => file.SizeBytes),
+                    estimatedBytes,
                     files.Count,
                     rule.RiskLevel,
-                    rule.Explanation));
+                    advice.Reason,
+                    advice.Recommendation,
+                    decision.Decision,
+                    decision.DecisionReason,
+                    advice.AdviceKey,
+                    advice.PossibleImpact,
+                    advice.RecommendedAction,
+                    advice.SafetyNote));
             }
         }
 

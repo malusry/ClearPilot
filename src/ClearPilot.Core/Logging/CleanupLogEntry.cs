@@ -3,6 +3,7 @@ using ClearPilot.Core.Cleanup;
 namespace ClearPilot.Core.Logging;
 
 public sealed record CleanupLogEntry(
+    string RunId,
     CleanupMode Mode,
     DateTimeOffset StartedAt,
     DateTimeOffset CompletedAt,

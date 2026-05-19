@@ -279,6 +279,73 @@ public sealed class DeepSpaceAnalyzerTests
         Assert.True(File.Exists(large));
     }
 
+    [Fact]
+    public void AnalyzeClassifiesWindowsSystemManagedAreasAsS2ReviewOnlyWhenPresent()
+    {
+        var windowsRoot = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        var cbsLogs = Path.Combine(windowsRoot, "Logs", "CBS");
+        if (!Directory.Exists(cbsLogs))
+        {
+            return;
+        }
+
+        var analyzer = new DeepSpaceAnalyzer(ProtectedPathPolicy.CreateDefault());
+        var options = new DeepSpaceAnalysisOptions
+        {
+            RootPaths = [cbsLogs],
+            LargeFileThresholdBytes = long.MaxValue,
+            LargeFolderThresholdBytes = long.MaxValue,
+            FileTypeSummaryThresholdBytes = long.MaxValue,
+            MaxDepth = 1,
+            MaxResults = 20
+        };
+
+        var result = analyzer.Analyze(options, DateTimeOffset.UtcNow);
+        var item = Assert.Single(result, item => item.Path.Equals(cbsLogs, StringComparison.OrdinalIgnoreCase));
+
+        Assert.Equal(DeepSpaceItemType.SystemManagedWindowsArea, item.Type);
+        Assert.Equal(RiskLevel.S2ReviewRequired, item.RiskLevel);
+        Assert.Contains("review-only", item.Explanation, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Storage Sense", item.SuggestedAction, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("cp.s2.cbs-logs", item.TargetId);
+    }
+
+    [Fact]
+    public void AnalyzeClassifiesGameLauncherReviewAreasAsS2AndDoesNotDelete()
+    {
+        using var workspace = TestWorkspace.Create();
+        var shaderCacheRoot = Path.Combine(workspace.Root, "Steam", "steamapps", "shadercache");
+        var cacheFile = workspace.CreateFile(Path.Combine("Steam", "steamapps", "shadercache", "cache.bin"), 4096, DateTime.UtcNow.AddDays(-2));
+        var analyzer = new DeepSpaceAnalyzer(
+            new ProtectedPathPolicy([]),
+            [
+                new DeepSpaceAnalyzer.ReviewOnlyAreaDefinition(
+                    "cp.s2.steam-shadercache",
+                    "Steam shader cache (analysis-only)",
+                    shaderCacheRoot,
+                    "Launcher-managed shader cache. Review-only.",
+                    "Review manually with launcher closed.",
+                    DeepSpaceItemType.GameLauncherReviewArea)
+            ]);
+        var options = new DeepSpaceAnalysisOptions
+        {
+            RootPaths = [shaderCacheRoot],
+            LargeFileThresholdBytes = long.MaxValue,
+            LargeFolderThresholdBytes = long.MaxValue,
+            FileTypeSummaryThresholdBytes = long.MaxValue,
+            MaxDepth = 1,
+            MaxResults = 20
+        };
+
+        var result = analyzer.Analyze(options, DateTimeOffset.UtcNow);
+        var item = Assert.Single(result, candidate => candidate.Path.Equals(shaderCacheRoot, StringComparison.OrdinalIgnoreCase));
+
+        Assert.Equal(DeepSpaceItemType.GameLauncherReviewArea, item.Type);
+        Assert.Equal(RiskLevel.S2ReviewRequired, item.RiskLevel);
+        Assert.Equal("cp.s2.steam-shadercache", item.TargetId);
+        Assert.True(File.Exists(cacheFile));
+    }
+
     private static DeepSpaceAnalysisOptions CreateOptions(string root)
     {
         return new DeepSpaceAnalysisOptions

@@ -1,6 +1,7 @@
 param(
     [string]$SourcePng = (Join-Path $PSScriptRoot "..\assets\icon\clearpilot-icon-source.png"),
-    [string]$OutputPng = (Join-Path $PSScriptRoot "..\assets\icon\clearpilot-icon.png")
+    [string]$OutputPng = (Join-Path $PSScriptRoot "..\assets\icon\clearpilot-icon.png"),
+    [int]$OutputSize = 1024
 )
 
 Set-StrictMode -Version Latest
@@ -17,178 +18,226 @@ if (-not (Test-Path -LiteralPath $outputDirectory)) {
     New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
 }
 
+$resolvedSource = (Resolve-Path -LiteralPath $SourcePng).Path
+
 $code = @"
 using System;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
-using System.IO;
-using System.Runtime.InteropServices;
+using System.Collections.Generic;
 
 public static class ClearPilotTransparentIcon
 {
-    public static void Create(string sourcePath, string outputPath)
+    private sealed class Bounds
+    {
+        public int MinX = int.MaxValue;
+        public int MinY = int.MaxValue;
+        public int MaxX = int.MinValue;
+        public int MaxY = int.MinValue;
+
+        public bool IsValid
+        {
+            get { return MinX <= MaxX && MinY <= MaxY; }
+        }
+
+        public void Include(int x, int y)
+        {
+            if (x < MinX) MinX = x;
+            if (x > MaxX) MaxX = x;
+            if (y < MinY) MinY = y;
+            if (y > MaxY) MaxY = y;
+        }
+    }
+
+    public static void Create(string sourcePath, string outputPath, int outputSize)
     {
         using (var loaded = Image.FromFile(sourcePath))
         using (var source = new Bitmap(loaded.Width, loaded.Height, PixelFormat.Format32bppArgb))
         {
-            using (var graphics = Graphics.FromImage(source))
+            using (var g = Graphics.FromImage(source))
             {
-                graphics.Clear(Color.Transparent);
-                graphics.DrawImage(loaded, 0, 0, loaded.Width, loaded.Height);
+                g.CompositingMode = CompositingMode.SourceCopy;
+                g.DrawImage(loaded, 0, 0, loaded.Width, loaded.Height);
             }
 
-            var background = EstimateBackground(source);
-            using (var output = new Bitmap(source.Width, source.Height, PixelFormat.Format32bppArgb))
+            int width = source.Width;
+            int height = source.Height;
+            var bgA = source.GetPixel(0, 0);
+            var bgB = source.GetPixel(Math.Max(0, width - 1), 0);
+            var bgC = source.GetPixel(0, Math.Max(0, height - 1));
+            var bgD = source.GetPixel(Math.Max(0, width - 1), Math.Max(0, height - 1));
+
+            using (var masked = new Bitmap(width, height, PixelFormat.Format32bppArgb))
             {
-                var rect = new Rectangle(0, 0, source.Width, source.Height);
-                var sourceData = source.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
-                var outputData = output.LockBits(rect, ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+                bool[,] isBackground = DetectBackground(source, bgA, bgB, bgC, bgD);
 
-                try
+                for (int y = 0; y < height; y++)
                 {
-                    var sourceBytes = new byte[Math.Abs(sourceData.Stride) * source.Height];
-                    var outputBytes = new byte[Math.Abs(outputData.Stride) * output.Height];
-                    Marshal.Copy(sourceData.Scan0, sourceBytes, 0, sourceBytes.Length);
-
-                    for (var y = 0; y < source.Height; y++)
+                    for (int x = 0; x < width; x++)
                     {
-                        for (var x = 0; x < source.Width; x++)
+                        Color c = source.GetPixel(x, y);
+                        if (isBackground[x, y])
                         {
-                            var sourceIndex = y * sourceData.Stride + x * 4;
-                            var outputIndex = y * outputData.Stride + x * 4;
-
-                            var b = sourceBytes[sourceIndex + 0];
-                            var g = sourceBytes[sourceIndex + 1];
-                            var r = sourceBytes[sourceIndex + 2];
-
-                            var alpha = CalculateAlpha(r, g, b, background, x, y, source.Width, source.Height);
-
-                            outputBytes[outputIndex + 0] = b;
-                            outputBytes[outputIndex + 1] = g;
-                            outputBytes[outputIndex + 2] = r;
-                            outputBytes[outputIndex + 3] = alpha;
+                            masked.SetPixel(x, y, Color.FromArgb(0, c.R, c.G, c.B));
+                            continue;
                         }
+                        masked.SetPixel(x, y, Color.FromArgb(255, c.R, c.G, c.B));
+                    }
+                }
+
+                Bounds b = FindOpaqueBounds(masked, 6);
+                if (!b.IsValid)
+                {
+                    b = new Bounds { MinX = 0, MinY = 0, MaxX = width - 1, MaxY = height - 1 };
+                }
+
+                int cropW = Math.Max(1, b.MaxX - b.MinX + 1);
+                int cropH = Math.Max(1, b.MaxY - b.MinY + 1);
+                int maxDim = Math.Max(cropW, cropH);
+                int pad = (int)Math.Ceiling(maxDim * 0.10);
+                int side = maxDim + (pad * 2);
+
+                using (var padded = new Bitmap(side, side, PixelFormat.Format32bppArgb))
+                {
+                    using (var pg = Graphics.FromImage(padded))
+                    {
+                        pg.Clear(Color.Transparent);
+                        pg.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                        pg.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                        pg.SmoothingMode = SmoothingMode.HighQuality;
+                        pg.CompositingQuality = CompositingQuality.HighQuality;
+
+                        var srcRect = new Rectangle(b.MinX, b.MinY, cropW, cropH);
+                        int dstX = (side - cropW) / 2;
+                        int dstY = (side - cropH) / 2;
+                        var dstRect = new Rectangle(dstX, dstY, cropW, cropH);
+                        pg.DrawImage(masked, dstRect, srcRect, GraphicsUnit.Pixel);
                     }
 
-                    Marshal.Copy(outputBytes, 0, outputData.Scan0, outputBytes.Length);
+                    using (var output = new Bitmap(outputSize, outputSize, PixelFormat.Format32bppArgb))
+                    using (var og = Graphics.FromImage(output))
+                    {
+                        og.Clear(Color.Transparent);
+                        og.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                        og.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                        og.SmoothingMode = SmoothingMode.HighQuality;
+                        og.CompositingQuality = CompositingQuality.HighQuality;
+                        og.DrawImage(padded, new Rectangle(0, 0, outputSize, outputSize));
+                        output.Save(outputPath, ImageFormat.Png);
+                    }
                 }
-                finally
-                {
-                    source.UnlockBits(sourceData);
-                    output.UnlockBits(outputData);
-                }
-
-                output.Save(outputPath, ImageFormat.Png);
             }
         }
     }
 
-    private static Color EstimateBackground(Bitmap source)
+    private static Bounds FindOpaqueBounds(Bitmap bitmap, int alphaThreshold)
     {
-        const int patch = 96;
-        long red = 0;
-        long green = 0;
-        long blue = 0;
-        var count = 0;
-
-        SamplePatch(source, 0, 0, patch, ref red, ref green, ref blue, ref count);
-        SamplePatch(source, source.Width - patch, 0, patch, ref red, ref green, ref blue, ref count);
-        SamplePatch(source, 0, source.Height - patch, patch, ref red, ref green, ref blue, ref count);
-        SamplePatch(source, source.Width - patch, source.Height - patch, patch, ref red, ref green, ref blue, ref count);
-
-        return Color.FromArgb(
-            (int)(red / count),
-            (int)(green / count),
-            (int)(blue / count));
-    }
-
-    private static void SamplePatch(Bitmap source, int startX, int startY, int size, ref long red, ref long green, ref long blue, ref int count)
-    {
-        for (var y = Math.Max(0, startY); y < Math.Min(source.Height, startY + size); y += 3)
+        var bounds = new Bounds();
+        for (int y = 0; y < bitmap.Height; y++)
         {
-            for (var x = Math.Max(0, startX); x < Math.Min(source.Width, startX + size); x += 3)
+            for (int x = 0; x < bitmap.Width; x++)
             {
-                var color = source.GetPixel(x, y);
-                red += color.R;
-                green += color.G;
-                blue += color.B;
-                count++;
+                if (bitmap.GetPixel(x, y).A >= alphaThreshold)
+                {
+                    bounds.Include(x, y);
+                }
             }
         }
+        return bounds;
     }
 
-    private static byte CalculateAlpha(byte r, byte g, byte b, Color background, int x, int y, int width, int height)
+    private static bool[,] DetectBackground(Bitmap bitmap, Color bgA, Color bgB, Color bgC, Color bgD)
     {
-        var luma = (0.299 * r) + (0.587 * g) + (0.114 * b);
-        var max = Math.Max(r, Math.Max(g, b));
-        var min = Math.Min(r, Math.Min(g, b));
-        var saturation = max - min;
-        var colorDistance = Math.Sqrt(
-            ((r - background.R) * (r - background.R)) +
-            ((g - background.G) * (g - background.G)) +
-            ((b - background.B) * (b - background.B)));
+        int width = bitmap.Width;
+        int height = bitmap.Height;
+        var bg = new bool[width, height];
+        var visited = new bool[width, height];
+        var queue = new Queue<Point>(width + height);
 
-        var darkness = Clamp01((228.0 - luma) / 145.0);
-        var edgeContrast = Clamp01((colorDistance - 16.0) / 76.0);
-        var inkTone = Clamp01(saturation / 120.0);
-        var subject = Math.Max(edgeContrast, Math.Max(darkness * 0.92, Math.Min(edgeContrast, inkTone) * 0.72));
-
-        var nx = (x + 0.5) / width;
-        var ny = (y + 0.5) / height;
-        var dx = nx - 0.50;
-        var dy = ny - 0.52;
-        var radius = Math.Sqrt((dx * dx) + (dy * dy));
-        var ringMask = SmoothStep(0.17, 0.24, radius) * (1.0 - SmoothStep(0.41, 0.54, radius));
-        var centerMarkMask = 1.0 - SmoothStep(0.13, 0.19, radius);
-
-        var tailMask = 1.0 - SmoothStep(1.0, 1.25, EllipseDistance(nx, ny, 0.52, 0.69, 0.47, 0.29));
-        var splashMask = 1.0 - SmoothStep(1.0, 1.35, EllipseDistance(nx, ny, 0.34, 0.70, 0.34, 0.33));
-        var spatialMask = Math.Max(Math.Max(ringMask, centerMarkMask), Math.Max(tailMask, splashMask * 0.78));
-        if (nx > 0.76 && ny > 0.36 && ny < 0.64)
+        for (int x = 0; x < width; x++)
         {
-            spatialMask *= 0.12;
+            TryEnqueue(bitmap, visited, queue, x, 0, bgA, bgB, bgC, bgD);
+            TryEnqueue(bitmap, visited, queue, x, height - 1, bgA, bgB, bgC, bgD);
+        }
+        for (int y = 0; y < height; y++)
+        {
+            TryEnqueue(bitmap, visited, queue, 0, y, bgA, bgB, bgC, bgD);
+            TryEnqueue(bitmap, visited, queue, width - 1, y, bgA, bgB, bgC, bgD);
         }
 
-        var edge = Math.Min(Math.Min(nx, 1.0 - nx), Math.Min(ny, 1.0 - ny));
-        var edgeFade = SmoothStep(0.025, 0.075, edge);
-
-        var alpha = subject * spatialMask * edgeFade;
-        alpha = SmoothStep(0.30, 0.78, alpha);
-
-        if (alpha < 0.035)
+        while (queue.Count > 0)
         {
-            return 0;
+            Point p = queue.Dequeue();
+            if (bg[p.X, p.Y])
+            {
+                continue;
+            }
+
+            bg[p.X, p.Y] = true;
+
+            TryEnqueue(bitmap, visited, queue, p.X - 1, p.Y, bgA, bgB, bgC, bgD);
+            TryEnqueue(bitmap, visited, queue, p.X + 1, p.Y, bgA, bgB, bgC, bgD);
+            TryEnqueue(bitmap, visited, queue, p.X, p.Y - 1, bgA, bgB, bgC, bgD);
+            TryEnqueue(bitmap, visited, queue, p.X, p.Y + 1, bgA, bgB, bgC, bgD);
         }
 
-        return (byte)Math.Round(255.0 * Clamp01(alpha));
+        return bg;
     }
 
-    private static double EllipseDistance(double x, double y, double centerX, double centerY, double radiusX, double radiusY)
+    private static void TryEnqueue(Bitmap bitmap, bool[,] visited, Queue<Point> queue, int x, int y, Color bgA, Color bgB, Color bgC, Color bgD)
     {
-        var dx = (x - centerX) / radiusX;
-        var dy = (y - centerY) / radiusY;
-        return Math.Sqrt((dx * dx) + (dy * dy));
-    }
-
-    private static double SmoothStep(double edge0, double edge1, double value)
-    {
-        var t = Clamp01((value - edge0) / (edge1 - edge0));
-        return t * t * (3.0 - (2.0 * t));
-    }
-
-    private static double Clamp01(double value)
-    {
-        if (value < 0.0)
+        if (x < 0 || y < 0 || x >= bitmap.Width || y >= bitmap.Height)
         {
-            return 0.0;
+            return;
         }
 
-        return value > 1.0 ? 1.0 : value;
+        if (visited[x, y])
+        {
+            return;
+        }
+
+        Color c = bitmap.GetPixel(x, y);
+        if (!IsLikelyBackground(c, bgA, bgB, bgC, bgD))
+        {
+            return;
+        }
+
+        visited[x, y] = true;
+        queue.Enqueue(new Point(x, y));
+    }
+
+    private static bool IsLikelyBackground(Color c, Color bgA, Color bgB, Color bgC, Color bgD)
+    {
+        int sat = Math.Max(c.R, Math.Max(c.G, c.B)) - Math.Min(c.R, Math.Min(c.G, c.B));
+        if (sat > 26)
+        {
+            return false;
+        }
+
+        double luma = (0.2126 * c.R) + (0.7152 * c.G) + (0.0722 * c.B);
+        if (luma < 132.0)
+        {
+            return false;
+        }
+
+        return ColorDistance(c, bgA) <= 42.0
+            || ColorDistance(c, bgB) <= 42.0
+            || ColorDistance(c, bgC) <= 42.0
+            || ColorDistance(c, bgD) <= 42.0;
+    }
+
+    private static double ColorDistance(Color a, Color b)
+    {
+        int dr = a.R - b.R;
+        int dg = a.G - b.G;
+        int db = a.B - b.B;
+        return Math.Sqrt((dr * dr) + (dg * dg) + (db * db));
     }
 }
 "@
 
 Add-Type -TypeDefinition $code -ReferencedAssemblies System.Drawing
-[ClearPilotTransparentIcon]::Create((Resolve-Path -LiteralPath $SourcePng), $OutputPng)
+[ClearPilotTransparentIcon]::Create($resolvedSource, $OutputPng, $OutputSize)
 
 Write-Host "Generated transparent icon PNG: $OutputPng"

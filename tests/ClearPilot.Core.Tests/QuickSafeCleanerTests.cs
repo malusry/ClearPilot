@@ -66,7 +66,7 @@ public sealed class QuickSafeCleanerTests
     }
 
     [Fact]
-    public void RunRecordsFailureForLockedFileAndContinues()
+    public void RunSkipsLockedFileAndContinues()
     {
         using var workspace = TestWorkspace.Create();
         var root = workspace.CreateDirectory("s0");
@@ -80,15 +80,17 @@ public sealed class QuickSafeCleanerTests
         Assert.True(File.Exists(lockedFile));
         Assert.False(File.Exists(deletableFile));
         Assert.Equal(1, result.DeletedCount);
-        Assert.Equal(1, result.FailedCount);
+        Assert.Equal(1, result.SkippedCount);
     }
 
     private static QuickSafeCleaner CreateCleaner(string logPath)
     {
         var protectedPathPolicy = new ProtectedPathPolicy([]);
+        var pathSafetyEngine = new PathSafetyEngine(protectedPathPolicy);
         return new QuickSafeCleaner(
             new CleanupFileScanner(protectedPathPolicy),
-            new CleanupLogStore(logPath));
+            new CleanupLogStore(logPath),
+            pathSafetyEngine);
     }
 
     private static CleanupRule CreateRule(string ruleId, RiskLevel riskLevel, string root)

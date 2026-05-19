@@ -47,6 +47,93 @@ public sealed class RuleCatalogTests
     }
 
     [Fact]
+    public void ChapterTwoWindowsTargetsUseExpectedRiskClassification()
+    {
+        var paths = new EnvironmentPaths(
+            @"C:\Users\tester\AppData\Local\Temp",
+            @"C:\Users\tester\AppData\Local",
+            @"C:\Users\tester",
+            @"C:\Windows",
+            @"C:\ProgramData");
+
+        var rules = RuleCatalog.CreateDefault(paths);
+
+        Assert.Equal(
+            RiskLevel.S0VeryLowRisk,
+            Assert.Single(rules, rule => rule.RuleId == "cp.s0.user-temp").RiskLevel);
+        Assert.Equal(
+            RiskLevel.S1LowRisk,
+            Assert.Single(rules, rule => rule.RuleId == "cp.s1.windows-temp").RiskLevel);
+        Assert.Equal(
+            RiskLevel.S1LowRisk,
+            Assert.Single(rules, rule => rule.RuleId == "cp.s1.windows-error-reports").RiskLevel);
+        Assert.Equal(
+            RiskLevel.S1LowRisk,
+            Assert.Single(rules, rule => rule.RuleId == "cp.s1.user-crash-dumps").RiskLevel);
+    }
+
+    [Fact]
+    public void InternetTemporaryCacheRuleExcludesIdentityAndSessionDataSegments()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var rule = Assert.Single(RuleCatalog.CreateDefault(paths), rule => rule.RuleId == "cp.s1.windows-inet-cache");
+
+        Assert.Contains("Cookies", rule.ExcludePathSegments);
+        Assert.Contains("History", rule.ExcludePathSegments);
+        Assert.Contains("Sessions", rule.ExcludePathSegments);
+        Assert.Contains("Login Data", rule.ExcludePathSegments);
+        Assert.Contains("Bookmarks", rule.ExcludePathSegments);
+        Assert.Contains("Local Storage", rule.ExcludePathSegments);
+        Assert.Contains("IndexedDB", rule.ExcludePathSegments);
+        Assert.Contains("Session Storage", rule.ExcludePathSegments);
+    }
+
+    [Fact]
+    public void MicrosoftStoreLocalCacheRuleUsesPackageLocalCacheRootsOnly()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "ClearPilot.Tests", Guid.NewGuid().ToString("N"));
+        try
+        {
+            var localAppData = Path.Combine(root, "LocalAppData");
+            var packagesRoot = Path.Combine(localAppData, "Packages");
+            Directory.CreateDirectory(Path.Combine(packagesRoot, "Contoso.App_123", "LocalCache"));
+            Directory.CreateDirectory(Path.Combine(packagesRoot, "Fabrikam.App_456", "LocalCache"));
+            var paths = new EnvironmentPaths(Path.Combine(root, "Temp"), localAppData, Path.Combine(root, "User"));
+
+            var rule = Assert.Single(RuleCatalog.CreateDefault(paths), rule => rule.RuleId == "cp.s1.msstore-localcache");
+
+            Assert.NotEmpty(rule.RootPaths);
+            Assert.All(rule.RootPaths, rootPath => Assert.EndsWith("LocalCache", rootPath, StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(rule.RootPaths, rootPath => rootPath.Contains("LocalState", StringComparison.OrdinalIgnoreCase));
+            Assert.Equal(RiskLevel.S1LowRisk, rule.RiskLevel);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void WindowsSystemManagedAreasAreNotCleanupDeletionTargets()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester", @"C:\Windows", @"C:\ProgramData");
+        var rules = RuleCatalog.CreateDefault(paths);
+
+        Assert.DoesNotContain(rules, rule =>
+            rule.RootPaths.Any(root =>
+                root.Contains(Path.Combine("Windows", "SoftwareDistribution", "Download"), StringComparison.OrdinalIgnoreCase)
+                || root.Contains(Path.Combine("DeliveryOptimization", "Cache"), StringComparison.OrdinalIgnoreCase)
+                || root.Contains(Path.Combine("Windows", "Logs", "CBS"), StringComparison.OrdinalIgnoreCase)
+                || root.Contains(Path.Combine("Windows", "Logs", "DISM"), StringComparison.OrdinalIgnoreCase)
+                || root.Contains(Path.Combine("Windows", "MEMORY.DMP"), StringComparison.OrdinalIgnoreCase)
+                || root.Contains(Path.Combine("Windows", "WinSxS"), StringComparison.OrdinalIgnoreCase)
+                || root.Contains(Path.Combine("Windows", "Installer"), StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [Fact]
     public void BrowserCacheRulesPointAtCacheFoldersOnly()
     {
         var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
@@ -257,5 +344,92 @@ public sealed class RuleCatalogTests
                 Directory.Delete(root, recursive: true);
             }
         }
+    }
+
+    [Fact]
+    public void ChapterThreeGameLauncherRulesAreS1AndRequireProcessGuard()
+    {
+        var paths = new EnvironmentPaths(
+            @"C:\Users\tester\AppData\Local\Temp",
+            @"C:\Users\tester\AppData\Local",
+            @"C:\Users\tester",
+            @"C:\Windows",
+            @"C:\ProgramData",
+            @"C:\Program Files",
+            @"C:\Program Files (x86)");
+
+        var rules = RuleCatalog.CreateDefault(paths);
+        var expectedRules = new Dictionary<string, string[]>
+        {
+            ["cp.s1.steam-httpcache"] = ["steam", "steamwebhelper"],
+            ["cp.s1.steam-logs"] = ["steam", "steamwebhelper"],
+            ["cp.s1.steam-dumps"] = ["steam", "steamwebhelper"],
+            ["cp.s1.epic-webcache"] = ["EpicGamesLauncher"],
+            ["cp.s1.epic-logs"] = ["EpicGamesLauncher"],
+            ["cp.s1.battlenet-cache"] = ["Battle.net", "Agent"],
+            ["cp.s1.battlenet-logs"] = ["Battle.net", "Agent"],
+            ["cp.s1.riot-client-cache"] = ["RiotClientServices", "RiotClientUx", "RiotClientUxRender"],
+            ["cp.s1.riot-client-logs"] = ["RiotClientServices", "RiotClientUx", "RiotClientUxRender"],
+            ["cp.s1.ea-app-cache"] = ["EADesktop", "EABackgroundService"],
+            ["cp.s1.ea-app-logs"] = ["EADesktop", "EABackgroundService"],
+            ["cp.s1.ubisoft-connect-cache"] = ["UbisoftConnect", "upc"],
+            ["cp.s1.ubisoft-connect-logs"] = ["UbisoftConnect", "upc"]
+        };
+
+        foreach (var expected in expectedRules)
+        {
+            var rule = Assert.Single(rules, candidate => candidate.RuleId == expected.Key);
+            Assert.Equal(RiskLevel.S1LowRisk, rule.RiskLevel);
+            Assert.False(string.IsNullOrWhiteSpace(rule.LauncherName));
+            Assert.NotEmpty(rule.EffectiveProcessGuardNames);
+            Assert.All(expected.Value, name =>
+                Assert.Contains(name, rule.EffectiveProcessGuardNames, StringComparer.OrdinalIgnoreCase));
+            Assert.False(rule.CanRunWithoutConfirmation);
+        }
+    }
+
+    [Fact]
+    public void SteamRulesDoNotTargetGameLibraryOrManifestLocations()
+    {
+        var paths = new EnvironmentPaths(
+            @"C:\Users\tester\AppData\Local\Temp",
+            @"C:\Users\tester\AppData\Local",
+            @"C:\Users\tester",
+            @"C:\Windows",
+            @"C:\ProgramData",
+            @"C:\Program Files",
+            @"C:\Program Files (x86)");
+        var rules = RuleCatalog.CreateDefault(paths)
+            .Where(rule => rule.RuleId is "cp.s1.steam-httpcache" or "cp.s1.steam-logs" or "cp.s1.steam-dumps")
+            .ToArray();
+
+        Assert.Equal(3, rules.Length);
+        Assert.All(rules, rule =>
+        {
+            Assert.Contains(rule.ExcludePathSegments, segment => segment.Equals("steamapps", StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(rule.ExcludePathSegments, segment => segment.Equals("workshop", StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(rule.ExcludePathSegments, segment => segment.Equals("downloading", StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(rule.RootPaths, root => root.EndsWith(Path.Combine("steamapps", "common"), StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(rule.RootPaths, root => root.EndsWith(Path.Combine("steamapps", "downloading"), StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(rule.RootPaths, root => root.EndsWith(Path.Combine("steamapps", "workshop"), StringComparison.OrdinalIgnoreCase));
+        });
+    }
+
+    [Fact]
+    public void ChapterThreeS2LauncherReviewRootsAreNotDeletionRules()
+    {
+        var paths = new EnvironmentPaths(
+            @"C:\Users\tester\AppData\Local\Temp",
+            @"C:\Users\tester\AppData\Local",
+            @"C:\Users\tester",
+            @"C:\Windows",
+            @"C:\ProgramData",
+            @"C:\Program Files",
+            @"C:\Program Files (x86)");
+        var rules = RuleCatalog.CreateDefault(paths);
+
+        Assert.DoesNotContain(rules, rule => rule.RootPaths.Any(root =>
+            root.EndsWith(Path.Combine("steamapps", "shadercache"), StringComparison.OrdinalIgnoreCase)
+            || root.EndsWith("depotcache", StringComparison.OrdinalIgnoreCase)));
     }
 }

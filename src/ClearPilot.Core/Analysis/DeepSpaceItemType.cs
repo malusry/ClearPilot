@@ -6,5 +6,7 @@ public enum DeepSpaceItemType
     LargeFolder,
     OldArchiveOrInstaller,
     ProjectDependencyFolder,
-    FileTypeSummary
+    FileTypeSummary,
+    SystemManagedWindowsArea,
+    GameLauncherReviewArea
 }

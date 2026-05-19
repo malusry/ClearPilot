@@ -1,71 +1,164 @@
 # Changelog
 
+## v0.3.0 - 2026-05-19
+
+### Highlights
+
+- Finalized the safety foundation with strict S0/S1/S2/S3/BLOCKED gates and path-safety enforcement.
+- Added direct cleanup decision labels:
+  - Recommended to clean
+  - Not recommended to clean
+  - Analysis only, do not clean
+  - Blocked
+- Expanded conservative Windows cache coverage and game launcher cache/log coverage with process guards.
+- Improved Deep Space Analysis UX, localized guidance (including zh-CN), and CJK wrapping readability.
+- Updated the app icon and regenerated Windows icon assets for packaging.
+
+### Safety Guarantees
+
+- Quick Safe Clean cleans S0 only.
+- Recommended Cleanup requires explicit confirmation and cleans S1 only.
+- Deep Space Analysis never deletes files.
+- S2/S3/BLOCKED remain non-deletable.
+
+### Explicit Non-Goals
+
+- No registry cleaning.
+- No driver cleaning.
+- No browser identity/password/cookie/history/session cleanup.
+- No game saves/configs/installed game cleanup.
+- No Defender protected data cleanup.
+- No administrator privilege requirement.
+
+## Unreleased - v0.3.0 Chapter 5A (Pre-release Hardening)
+
+### Added/Improved
+
+- Pre-release QA pass for build quality, localization quality, and CLI consistency.
+- zh-CN catalog cleanup for user-facing menu, cleanup, analysis, history, and settings surfaces.
+- Documentation readiness refresh for v0.3.0 safety model and scope boundaries.
+
+### Safety
+
+- No cleanup mode semantics changed.
+- No risk-gate behavior relaxed.
+- No new cleanup targets added in this hardening pass.
+
+## Unreleased - v0.3.0 Chapter 4.6 (Development Only)
+
+### UX
+
+- Tuned Deep Space Analysis console visual hierarchy:
+  - kept decision colors stable
+  - reduced cyan overuse in section headings
+  - added a restrained size/space accent color
+
+### Safety
+
+- Presentation-only change; cleanup behavior unchanged.
+
+## Unreleased - v0.3.0 Chapter 4.5 (Development Only)
+
+### Added
+
+- Deterministic direct cleanup decision model:
+  - `RecommendedToClean`
+  - `NotRecommendedToClean`
+  - `AnalysisOnlyDoNotClean`
+  - `Blocked`
+- Decision metadata in scan/execution/log/report models.
+
+### UX
+
+- Decision-first cards in Recommended Cleanup and Deep Space.
+- Primary Chinese decision wording:
+  - `结论`
+  - `建议清理`
+  - `不建议清理`
+  - `仅分析，不清理`
+  - `已阻止`
+
+### Safety
+
+- Decision labels remain advisory only and do not override risk gates.
+
+## Unreleased - v0.3.0 Chapter 4 (Development Only)
+
+### Added
+
+- Recommendation layer (`Recommended`/`Optional`/`Not Recommended`/`Review Only`/`Blocked`).
+- Target advice metadata: reason, impact, action, safety note.
+- Recommendation/advice fields in logs and reports.
+
+### Safety
+
+- `S2`/`S3`/`BLOCKED` remain non-deletable regardless of recommendation.
+
+## Unreleased - v0.3.0 Chapter 3 (Development Only)
+
+### Added
+
+- Conservative S1 launcher cache/log coverage for:
+  - Steam
+  - Epic Games Launcher
+  - Battle.net
+  - Riot Client
+  - EA App
+  - Ubisoft Connect
+- Process guard integration with structured skip results.
+- Steam shader/depot review-only targets in Deep Space.
+
+### Safety
+
+- No process termination, no elevation, no service manipulation.
+- Game installs/library/manifests/identity-sensitive data remain blocked.
+
+## Unreleased - v0.3.0 Chapter 2 (Development Only)
+
+### Added
+
+- Conservative Windows cache coverage for S1 cleanup.
+- System-managed Windows areas reported as S2 analysis-only.
+
+### Safety
+
+- Windows Update/Delivery Optimization/CBS/DISM/memory-dump areas remain analysis-only.
+
+## Unreleased - v0.3.0 Chapter 1 (Development Only)
+
+### Added
+
+- Formal S0/S1/S2/S3/BLOCKED risk model and mode gates.
+- `PathSafetyEngine` + deletion-time revalidation.
+- `KnownSafeCacheRootWhitelist` enforcement.
+- Structured safety-decision logging.
+
+### Safety
+
+- Quick: S0 only
+- Recommended: confirmed S1 only
+- Deep Space: no delete
+- S3/BLOCKED: never deleted
+
 ## v0.2.0 - 2026-05-17
 
 ### Added
 
-- Expanded Deep Space Analysis with broader user-controlled scan roots, including Downloads, Desktop, Documents, Pictures, Videos, Music, source, repos, Projects, dev, workspace, workspaces, and code when present.
-- Added safe user-scoped cache roots to Deep Space Analysis, including the user temp folder, Windows Error Reporting, DirectX/GPU shader caches, and common developer caches for NuGet, Gradle, npm, pnpm, Yarn, pip, Deno, Go, Cargo, and Maven.
-- Added review-only findings for nested large folders, Python virtual environment folders (`.venv`, `venv`), frontend framework outputs, local build caches, test caches, coverage output, vendor folders, and Terraform working directories alongside existing dependency and build-output folders.
-- Added file type space summaries so large extension groups such as archives, disk images, videos, logs, or temporary files can be reviewed by scan root.
-- Added suggested manual actions to every Deep Space Analysis finding.
-- Added a Deep Space Analysis scan summary with scanned roots, scanned directories, scanned files, review item count, and review footprint.
-- Grouped Deep Space Analysis results by finding type with per-type totals and top space sources.
-- Added interactive Deep Space Analysis filtering by finding type and sorting by size or last modified time.
-- Improved Deep Space Analysis explanations and suggested actions for videos, logs, temporary files, backups, archives, disk images, installers, and project dependency folders.
-- Localized Deep Space Analysis explanations and suggested actions for the optional Simplified Chinese UI.
-- Improved CLI result cards so long explanations and suggested actions wrap across multiple lines instead of being truncated.
-- Added Markdown export for Deep Space Analysis reports under the ClearPilot reports folder, with summary tables, type breakdown bars, top sources, grouped findings, localized explanations, and suggested actions.
-- After exporting a Deep Space Analysis report, ClearPilot opens File Explorer and selects the generated report file when possible.
-- Expanded recommended cleanup scanning with additional conservative S1 targets: Windows Error Reporting files, DirectX/GPU shader caches, Maven/Deno/Bun caches, Python bytecode caches, Electron app UI caches, and additional browser cache folders for Brave, Chromium, Vivaldi, Opera, and Firefox.
-- Expanded Deep Space Analysis default project roots with common user-controlled development folders such as `dev`, `workspace`, `workspaces`, and `code`.
-- Localized recommended cleanup category names and explanations for the optional Simplified Chinese UI.
-- Reduced duplicate Deep Space Analysis large-folder noise by suppressing a parent large-folder finding when a dominant child finding already explains most of the space.
-- Improved CLI page transitions so each main action and subpage clears the previous menu before rendering the current view.
-- Refined the CLI color system with a unified theme and clearer function-color navigation in the main menu.
-- Optimized the development launcher so `ClearPilot.cmd` only rebuilds when the Debug executable is missing or source files are newer than the executable.
-- Added compact cleanup previews for Quick Safe Clean and Recommended Cleanup, showing cleanup groups, estimated file count, estimated space, top items, and the relevant safety boundary without adding another workflow.
-- Improved cleanup completion pages by separating running and completed views, keeping completion statistics aligned.
-- Excluded ClearPilot internal folders, cleanup log file names, reports, and test artifacts from default temporary-file cleanup and Deep Space Analysis results.
+- Expanded conservative recommended-cache coverage and Deep Space analysis/reporting.
+- Improved CLI cards, summaries, and report export workflows.
 
 ### Safety
 
-- Deep Space Analysis remains analysis-only and does not delete files.
-- Deep Space Analysis findings are still reported as review-required items and can only open the relevant file or folder location.
-- Deep Space Analysis report export writes a Markdown report only; it does not modify analyzed files.
-- New recommended cleanup targets remain S1 and require explicit user selection before cleaning.
-- Quick Safe Clean preview remains informational only; automatic cleanup is still limited to S0 very-low-risk rules.
-- ClearPilot's own settings, logs, reports, and development test artifacts are not treated as cleanup recommendations or Deep Space findings.
-- Browser expansion is limited to cache folders and excludes cookies, passwords, bookmarks, history, sessions, profiles, local storage, and identity data.
-- Electron app expansion is limited to Cache, Code Cache, and GPUCache folders.
-- v0.1.0 release artifacts under `release/ClearPilot-v0.1.0` were not modified.
+- Browser cleanup remained cache-only (identity/session data excluded).
+- Deep Space remained analysis-only.
 
 ## v0.1.0 - MVP Release Candidate
 
 ### Added
 
-- Windows command-line menu experience with English as the default UI language.
-- Optional Simplified Chinese UI language in Settings.
-- Quick Safe Clean for S0 very-low-risk cleanup items.
-- Recommended Cleanup for S1 low-risk cache items with explicit confirmation.
-- Deep Space Analysis for review-only large file and folder findings.
-- Cleanup History with log retention.
-- Settings for UI language, log retention days, and Recycle Bin behavior.
-- Self-contained Windows x64 release package under `release/ClearPilot-v0.1.0`.
-- ClearPilot app icon embedded into the release executable.
+- Initial CLI experience with optional Simplified Chinese UI.
+- Quick Safe Clean, Recommended Cleanup, Deep Space Analysis, Cleanup History, Settings.
 
 ### Safety
 
-- Quick Safe Clean only runs S0 rules.
-- S1 recommended cleanup requires explicit user selection.
-- Deep Space Analysis never deletes files.
-- Protected system roots are blocked globally.
-- Browser identity, cookies, passwords, bookmarks, history, sessions, and profiles are excluded from browser cache rules.
-- Registry cleaning, driver cleaning, browser identity/session cleanup, risky user-data deletion, and administrator-only cleanup are out of scope.
-
-### Known Limitations
-
-- The first release is a command-line menu tool, not a desktop GUI.
-- Release packaging is a folder-based package, not an installer.
-- Deep Space Analysis opens item locations for manual review but does not perform manual deletion.
-- The embedded icon is generated from the selected PNG concept; earlier vector icon drafts remain in `assets/icon/drafts`.
+- Baseline protected-root and risk-mode separation established.

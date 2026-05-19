@@ -36,6 +36,10 @@ public sealed class CleanupScannerTests
         Assert.Equal(5, candidate.EstimatedBytes);
         Assert.Equal(1, candidate.FileCount);
         Assert.Equal(RiskLevel.S0VeryLowRisk, candidate.RiskLevel);
+        Assert.Equal(RecommendationLevel.Recommended, candidate.Recommendation);
+        Assert.Equal(CleanupDecision.RecommendedToClean, candidate.CleanupDecision);
+        Assert.False(string.IsNullOrWhiteSpace(candidate.CleanupDecisionReason));
+        Assert.False(string.IsNullOrWhiteSpace(candidate.AdviceKey));
     }
 
     [Fact]

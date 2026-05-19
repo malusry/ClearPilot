@@ -11,4 +11,6 @@ public sealed record DeepSpaceItem(
     string Explanation,
     string SuggestedAction,
     DeepSpaceAdviceKey AdviceKey = DeepSpaceAdviceKey.GenericLargeFile,
-    string AdviceSubject = "");
+    string AdviceSubject = "",
+    string TargetId = "",
+    string Category = "");

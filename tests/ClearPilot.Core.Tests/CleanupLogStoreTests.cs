@@ -12,6 +12,7 @@ public sealed class CleanupLogStoreTests
         var logDirectory = Path.Combine(Path.GetTempPath(), "ClearPilot.Tests", Guid.NewGuid().ToString("N"), "logs");
         var store = new CleanupLogStore(logDirectory);
         var log = new CleanupRunLog(
+            Guid.NewGuid().ToString("N"),
             CleanupMode.QuickSafeClean,
             DateTimeOffset.UtcNow,
             DateTimeOffset.UtcNow,
@@ -22,14 +23,31 @@ public sealed class CleanupLogStoreTests
             DryRunBytes: 0,
             SkippedCount: 0,
             FailedCount: 0,
-            [new CleanupItemResult("test.s0", @"C:\Temp\file.tmp", 5, CleanupItemAction.Deleted)]);
+            [new CleanupItemResult(
+                "test.s0",
+                "Test",
+                "",
+                "NotApplicable",
+                @"C:\Temp\file.tmp",
+                5,
+                CleanupItemAction.Deleted,
+                Recommendation: RecommendationLevel.Recommended,
+                CleanupDecision: CleanupDecision.RecommendedToClean,
+                CleanupDecisionReason: "safe cache target",
+                AdviceKey: "advice.test")]);
 
         var path = store.Write(log);
 
         Assert.True(File.Exists(path));
         var content = File.ReadAllText(path);
         Assert.Contains("\"Mode\": \"QuickSafeClean\"", content);
+        Assert.Contains("\"Category\": \"Test\"", content);
+        Assert.Contains("\"Recommendation\": \"Recommended\"", content);
+        Assert.Contains("\"CleanupDecision\": \"RecommendedToClean\"", content);
+        Assert.Contains("\"CleanupDecisionReason\": \"safe cache target\"", content);
+        Assert.Contains("\"AdviceKey\": \"advice.test\"", content);
         Assert.Contains("\"DeletedCount\": 1", content);
+        Assert.False(content.Contains("\u001b[", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -106,6 +124,7 @@ public sealed class CleanupLogStoreTests
     private static CleanupRunLog CreateLog(DateTimeOffset startedAt, CleanupMode mode, long deletedBytes)
     {
         return new CleanupRunLog(
+            Guid.NewGuid().ToString("N"),
             mode,
             startedAt,
             startedAt.AddSeconds(2),
@@ -116,6 +135,17 @@ public sealed class CleanupLogStoreTests
             DryRunBytes: 0,
             SkippedCount: 0,
             FailedCount: 0,
-            [new CleanupItemResult("test.rule", @"C:\Temp\file.tmp", deletedBytes, CleanupItemAction.Deleted)]);
+            [new CleanupItemResult(
+                "test.rule",
+                "Test",
+                "",
+                "NotApplicable",
+                @"C:\Temp\file.tmp",
+                deletedBytes,
+                CleanupItemAction.Deleted,
+                Recommendation: RecommendationLevel.Optional,
+                CleanupDecision: CleanupDecision.NotRecommendedToClean,
+                CleanupDecisionReason: "diagnostic data",
+                AdviceKey: "advice.test")]);
     }
 }
