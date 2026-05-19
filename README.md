@@ -1,68 +1,75 @@
 # ClearPilot
 
-ClearPilot is a Windows cleanup assistant focused on conservative cache cleanup, clear user guidance, and strong safety boundaries.
+ClearPilot is a conservative Windows cleanup assistant. It focuses on cache cleanup, explainable decisions, and strict safety boundaries rather than aggressive system tweaking.
 
-Current release: **v0.2.0**  
-Current development line: **v0.3.0 (pre-release hardening)**
+**Latest release:** [v0.3.0](https://github.com/malusry/ClearPilot/releases/tag/v0.3.0)
 
-## What ClearPilot Does
+## Highlights
 
-- `Quick Safe Clean`: automatic cleanup for strictly `S0` very-low-risk targets only.
-- `Recommended Cleanup`: user-confirmed cleanup for `S1` low-risk targets only.
-- `Deep Space Analysis`: `S2` review-only analysis. No deletion.
-- Cleanup history and structured logs for auditability.
-- Optional Simplified Chinese UI (`zh-CN`), English default.
+- Quick Safe Clean for very-low-risk temporary files.
+- Recommended Cleanup for low-risk cache/log targets, with explicit confirmation.
+- Deep Space Analysis for review-only large files and system-managed areas.
+- Direct cleanup decisions: `Recommended to clean`, `Not recommended to clean`, `Analysis only, do not clean`, and `Blocked`.
+- English UI by default, with optional Simplified Chinese.
+- No administrator privileges required.
 
-## Safety Model (v0.3.0)
+## Download
 
-- `S0` Very low risk: auto-clean eligible in Quick mode.
-- `S1` Low risk: cleanup allowed only after explicit confirmation.
-- `S2` Review-only: analyze and report only, never delete.
-- `S3` High risk/manual: never deleted by ClearPilot.
-- `BLOCKED`: explicitly forbidden, never deleted.
+Download the latest Windows package from:
 
-Safety gates are enforced in the cleanup engine; user-facing recommendations never override these gates.
+[ClearPilot v0.3.0 release](https://github.com/malusry/ClearPilot/releases/tag/v0.3.0)
 
-## Direct Cleanup Decision Labels (v0.3.0)
+The release includes:
 
-Primary user-facing decisions:
+- `ClearPilot.exe`
+- `ClearPilot.cmd`
+- SHA256 checksum file
 
-- `Recommended to clean`
-- `Not recommended to clean`
-- `Analysis only, do not clean`
-- `Blocked`
+To run:
 
-Simplified Chinese:
+```powershell
+.\ClearPilot.cmd
+```
 
-- `建议清理`
-- `不建议清理`
-- `仅分析，不清理`
-- `已阻止`
+## Cleanup Modes
 
-## Core Safety Enforcement
+ClearPilot separates cleanup into strict risk levels.
 
-- Canonical path validation with `PathSafetyEngine`.
-- Known-safe root constraints with `KnownSafeCacheRootWhitelist`.
-- Protected root and hard-deny protection via `ProtectedPathPolicy`.
-- Deletion-time revalidation before each delete action.
-- Reparse point/symlink/junction blocking on deletion targets.
-- Process guards for launcher-specific cleanup targets.
+| Mode | What it can do |
+| --- | --- |
+| Quick Safe Clean | Automatically cleans `S0` very-low-risk items only. |
+| Recommended Cleanup | Cleans `S1` low-risk items only after explicit confirmation. |
+| Deep Space Analysis | Reports `S2` review-only items. It does not delete files. |
 
-## Coverage in v0.3.0 Development
+Higher-risk or blocked targets are never deleted by ClearPilot.
 
-### Windows cache coverage
+## Safety Model
 
-- User temp (S0/S1 policy-constrained by mode and age rules)
-- Windows temp (S1, no elevation)
-- Windows Error Reporting user scope (S1)
-- User crash dumps (S1, with diagnostic caution)
-- INetCache cache-only paths (S1, identity/session exclusions)
-- Microsoft Store `LocalCache` safe paths (S1)
-- Windows Update / Delivery Optimization / CBS / DISM / memory dump / `Windows.old` as `S2` analysis-only
+| Level | Meaning |
+| --- | --- |
+| `S0` | Very low risk. Eligible for Quick Safe Clean. |
+| `S1` | Low risk. Requires explicit confirmation. |
+| `S2` | Review-only. Analysis and reporting only. |
+| `S3` | High risk or system-managed. Not cleaned by ClearPilot. |
+| `BLOCKED` | Explicitly forbidden. Never cleaned. |
 
-### Game launcher cache/log coverage
+Safety gates are enforced in the cleanup engine. User-facing recommendations do not override them.
 
-Launcher-scoped cache/log coverage for:
+## What v0.3.0 Covers
+
+### Windows cache and diagnostics
+
+- Current user temp files
+- Windows temp files where accessible without elevation
+- Windows Error Reporting user-scope files
+- User crash dumps, with diagnostic caution
+- INetCache cache-only paths, excluding identity/session data
+- Microsoft Store `LocalCache` paths
+- Windows Update, Delivery Optimization, CBS/DISM logs, memory dumps, and `Windows.old` as review-only analysis
+
+### Game launcher cache and logs
+
+Conservative launcher-scoped coverage for:
 
 - Steam
 - Epic Games Launcher
@@ -71,49 +78,67 @@ Launcher-scoped cache/log coverage for:
 - EA App
 - Ubisoft Connect
 
-These targets are conservative, process-guarded, and still pass the same path-safety checks.
+Launcher targets are process-guarded and limited to known cache/log/dump paths. Installed games, saves, configs, manifests, downloads in progress, and library metadata are excluded.
 
-## Explicit Non-Goals / Blocked Areas
+## What ClearPilot Does Not Do
 
-ClearPilot does **not** perform:
+ClearPilot intentionally does not perform:
 
 - Registry cleaning
 - Driver cleaning
-- Browser identity/profile cleanup (cookies/passwords/bookmarks/history/sessions/local storage/indexeddb/session storage)
-- Game installs/saves/configs/mods/screenshots/recordings/manifests/library metadata cleanup
-- Microsoft Defender quarantine/protection/signature/engine/state cleanup
+- Browser identity/profile cleanup, including cookies, passwords, bookmarks, history, sessions, local storage, IndexedDB, or session storage
+- Game install, save, config, mod, screenshot, recording, manifest, or library metadata cleanup
+- Microsoft Defender quarantine, protection history, signatures, engine, or scan-state cleanup
 - Service stopping, ACL changes, forced unlocks, or privilege escalation
-- Whole-root deletion of `Windows`, `Program Files`, `Program Files (x86)`, `ProgramData`, or full user profile roots
+- Whole-root deletion of `Windows`, `Program Files`, `Program Files (x86)`, `ProgramData`, or user profile directories
 
-## Project Layout
+## Design Principles
 
-```text
-src\ClearPilot.Cli         Console UI
-src\ClearPilot.Core        Cleanup engine, safety, scanning, logging, localization
-tests\ClearPilot.Core.Tests
-docs                       Product requirements and MVP plan
-release\ClearPilot-v0.2.0  Current published release package
-release\ClearPilot-v0.1.0  Previous release package
-```
+- Prefer skipping over guessing.
+- Treat uncertain targets as review-only or blocked.
+- Never require administrator privileges for supported cleanup.
+- Explain the decision before deleting.
+- Keep logs and reports auditable.
 
-## Run (Development)
+## Build From Source
 
-```text
-ClearPilot.cmd
-```
+Prerequisites:
 
-## Build And Test
+- Windows
+- .NET SDK matching `global.json`
+
+Build and test:
 
 ```powershell
 .\.dotnet\dotnet.exe build .\ClearPilot.sln --no-restore
 .\.dotnet\dotnet.exe test .\ClearPilot.sln --no-build
 ```
 
+Run the development launcher:
+
+```powershell
+.\ClearPilot.cmd
+```
+
+## Project Layout
+
+```text
+src\ClearPilot.Cli          Console UI
+src\ClearPilot.Core         Cleanup engine, safety, scanning, logging, localization
+tests\ClearPilot.Core.Tests Unit and regression tests
+docs                         Product notes and requirements
+release\ClearPilot-v0.3.0    Published v0.3.0 package
+```
+
 ## Logs And Reports
+
+By default:
 
 - Cleanup logs: `%LOCALAPPDATA%\ClearPilot\logs`
 - Deep Space reports: `%LOCALAPPDATA%\ClearPilot\reports`
 
-## Release Status
+ClearPilot records metadata about cleanup decisions and results. It does not log file contents.
 
-v0.3.0 is under pre-release hardening. Final packaging, version finalization, tag creation, and GitHub release publishing are handled in the final release chapter.
+## License
+
+No license file is currently included. If you plan to reuse or redistribute the code, check the repository status first.
