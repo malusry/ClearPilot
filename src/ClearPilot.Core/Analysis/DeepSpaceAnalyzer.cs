@@ -513,11 +513,6 @@ public sealed class DeepSpaceAnalyzer
 
         AddIfExistingDirectoryOrFile(roots, Path.GetTempPath());
         AddIfExistingDirectoryOrFile(roots, Path.Combine(userProfile, "Downloads"));
-        AddIfExistingDirectoryOrFile(roots, Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory));
-        AddIfExistingDirectoryOrFile(roots, Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
-        AddIfExistingDirectoryOrFile(roots, Environment.GetFolderPath(Environment.SpecialFolder.MyPictures));
-        AddIfExistingDirectoryOrFile(roots, Environment.GetFolderPath(Environment.SpecialFolder.MyVideos));
-        AddIfExistingDirectoryOrFile(roots, Environment.GetFolderPath(Environment.SpecialFolder.MyMusic));
         AddIfExistingDirectoryOrFile(roots, Path.Combine(userProfile, "source"));
         AddIfExistingDirectoryOrFile(roots, Path.Combine(userProfile, "repos"));
         AddIfExistingDirectoryOrFile(roots, Path.Combine(userProfile, "Projects"));

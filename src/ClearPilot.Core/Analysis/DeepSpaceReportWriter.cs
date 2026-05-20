@@ -133,7 +133,6 @@ public sealed class DeepSpaceReportWriter
                 builder.AppendLine($"- **{text.LastModified}:** {FormatDate(item.LastWriteTime)}");
                 builder.AppendLine($"- **{text.Explanation}:** {DeepSpaceAdviceFormatter.FormatExplanation(language, item)}");
                 builder.AppendLine($"- **{text.PossibleImpact}:** {DeepSpaceAdviceFormatter.FormatPossibleImpact(language, item, advice.PossibleImpact)}");
-                builder.AppendLine($"- **{text.SuggestedAction}:** {DeepSpaceAdviceFormatter.FormatSuggestedAction(language, item)}");
                 builder.AppendLine($"- **{text.SafetyNote}:** {DeepSpaceAdviceFormatter.FormatSafetyNote(language, item, advice.SafetyNote)}");
                 builder.AppendLine();
             }
@@ -222,9 +221,9 @@ public sealed class DeepSpaceReportWriter
         {
             return recommendation switch
             {
-                RecommendationLevel.Recommended => "建议",
+                RecommendationLevel.Recommended => "推荐",
                 RecommendationLevel.Optional => "可选",
-                RecommendationLevel.NotRecommended => "不建议",
+                RecommendationLevel.NotRecommended => "不推荐",
                 RecommendationLevel.ReviewOnly => "仅复核",
                 RecommendationLevel.Blocked => "已阻止",
                 _ => recommendation.ToString()
@@ -351,7 +350,6 @@ public sealed class DeepSpaceReportWriter
         string LastModified,
         string Explanation,
         string PossibleImpact,
-        string SuggestedAction,
         string SafetyNote,
         string Footer)
     {
@@ -364,7 +362,7 @@ public sealed class DeepSpaceReportWriter
 
         private static ReportText English { get; } = new(
             "ClearPilot Deep Space Analysis Report",
-            "Analysis only. ClearPilot did not delete files while generating this report.",
+            "Analysis only. ClearPilot does not delete files in Deep Space. Downloads is scanned only for storage understanding, and personal libraries (Desktop/Documents/Pictures/Videos/Music) are not scanned by default.",
             "Generated at",
             "At a Glance",
             "Metric",
@@ -392,21 +390,20 @@ public sealed class DeepSpaceReportWriter
             "Last modified",
             "Explanation",
             "Possible impact",
-            "Suggested action",
             "Safety note",
             "ClearPilot reports review candidates only. Open locations and decide manually before changing files.");
 
         private static ReportText Chinese { get; } = new(
             "ClearPilot 深度空间分析报告",
-            "仅分析：生成报告时 ClearPilot 不会删除文件。",
+            "仅分析：Deep Space 不会删除文件。Downloads 仅用于存储占用了解；Desktop/Documents/Pictures/Videos/Music 默认不扫描。",
             "生成时间",
             "概览",
             "指标",
-            "值",
+            "数值",
             "扫描根目录",
             "扫描目录",
             "扫描文件",
-            "复核项目",
+            "复核项",
             "复核占用",
             "扫描范围",
             "类型分布",
@@ -426,7 +423,6 @@ public sealed class DeepSpaceReportWriter
             "最后修改",
             "说明",
             "可能影响",
-            "建议操作",
             "安全说明",
             "ClearPilot 只报告需要复核的候选项，请手动确认后再处理。");
     }

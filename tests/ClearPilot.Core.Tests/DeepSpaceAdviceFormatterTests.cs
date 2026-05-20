@@ -8,16 +8,16 @@ namespace ClearPilot.Core.Tests;
 public sealed class DeepSpaceAdviceFormatterTests
 {
     [Theory]
-    [InlineData(DeepSpaceAdviceKey.VideoFile, ".mp4", "大型视频文件", "手动查看视频内容")]
-    [InlineData(DeepSpaceAdviceKey.DiskImage, ".iso", "旧磁盘镜像", "挂载或检查镜像内容")]
-    [InlineData(DeepSpaceAdviceKey.NodeModules, "node_modules", "Node.js 项目依赖目录", "手动删除 node_modules")]
-    [InlineData(DeepSpaceAdviceKey.PythonVirtualEnvironment, ".venv", "Python 虚拟环境", "手动删除它")]
-    [InlineData(DeepSpaceAdviceKey.FrontendFrameworkOutput, ".next", "前端框架构建缓存或输出目录", "优先使用框架清理命令")]
-    public void ZhCnAdviceFormatterReturnsLocalizedExplanationAndAction(
+    [InlineData(DeepSpaceAdviceKey.VideoFile, ".mp4", "个人数据", "手动确认")]
+    [InlineData(DeepSpaceAdviceKey.DiskImage, ".iso", "旧磁盘镜像", "人工复核")]
+    [InlineData(DeepSpaceAdviceKey.NodeModules, "node_modules", "项目依赖目录", "先人工复核")]
+    [InlineData(DeepSpaceAdviceKey.PythonVirtualEnvironment, ".venv", "虚拟环境", "先人工复核")]
+    [InlineData(DeepSpaceAdviceKey.FrontendFrameworkOutput, ".next", "前端构建输出", "先人工复核")]
+    public void ZhCnAdviceFormatterReturnsReadableExplanationAndAction(
         DeepSpaceAdviceKey adviceKey,
         string subject,
-        string expectedExplanation,
-        string expectedAction)
+        string expectedExplanationFragment,
+        string expectedActionFragment)
     {
         var item = CreateItem(
             adviceKey,
@@ -29,12 +29,14 @@ public sealed class DeepSpaceAdviceFormatterTests
         var explanation = DeepSpaceAdviceFormatter.FormatExplanation(Language.SimplifiedChinese, item);
         var action = DeepSpaceAdviceFormatter.FormatSuggestedAction(Language.SimplifiedChinese, item);
 
-        Assert.Contains(expectedExplanation, explanation);
-        Assert.Contains(expectedAction, action);
+        Assert.Contains(expectedExplanationFragment, explanation);
+        Assert.Contains(expectedActionFragment, action);
+        Assert.DoesNotContain("\uFFFD", explanation, StringComparison.Ordinal);
+        Assert.DoesNotContain("\uFFFD", action, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void ZhCnWindowsSystemManagedAdviceIsLocalized()
+    public void ZhCnWindowsSystemManagedAdviceIsReadableAndReadOnly()
     {
         var item = CreateItem(
             DeepSpaceAdviceKey.WindowsSystemManagedArea,
@@ -48,15 +50,15 @@ public sealed class DeepSpaceAdviceFormatterTests
         var impact = DeepSpaceAdviceFormatter.FormatPossibleImpact(Language.SimplifiedChinese, item, "Manual deletion can disrupt state.");
         var safety = DeepSpaceAdviceFormatter.FormatSafetyNote(Language.SimplifiedChinese, item, "Analysis only.");
 
-        Assert.Contains("Windows 管理的系统缓存", explanation);
-        Assert.Contains("仅分析，不会删除", explanation);
-        Assert.Contains("请使用 Windows 设置、存储感知或磁盘清理", action);
-        Assert.Contains("可能干扰 Windows 更新", impact);
+        Assert.Contains("Windows 系统管理区域", explanation);
+        Assert.Contains("仅分析，不删除", explanation);
+        Assert.Contains("不要直接删除", action);
+        Assert.Contains("影响 Windows 更新", impact);
         Assert.Contains("仅分析，不清理", safety);
     }
 
     [Fact]
-    public void ZhCnGameLauncherReviewAdviceIsLocalized()
+    public void ZhCnGameLauncherReviewAdviceIsReadableAndReadOnly()
     {
         var item = CreateItem(
             DeepSpaceAdviceKey.WindowsSystemManagedArea,
@@ -71,9 +73,9 @@ public sealed class DeepSpaceAdviceFormatterTests
         var safety = DeepSpaceAdviceFormatter.FormatSafetyNote(Language.SimplifiedChinese, item, "Analysis only.");
 
         Assert.Contains("游戏启动器相关的复核项", explanation);
-        Assert.Contains("下载状态", explanation);
-        Assert.Contains("启动器关闭后", action);
-        Assert.Contains("着色器", impact);
+        Assert.Contains("仅分析，不删除", explanation);
+        Assert.Contains("不要直接删除", action);
+        Assert.Contains("着色器重编译", impact);
         Assert.Contains("仅分析，不清理", safety);
     }
 

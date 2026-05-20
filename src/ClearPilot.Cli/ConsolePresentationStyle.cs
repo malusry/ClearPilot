@@ -68,12 +68,14 @@ public static class ConsolePresentationStyle
 
     public static string GetImpactLabel(Language language)
     {
-        return language == Language.SimplifiedChinese ? "\u5F71\u54CD" : "Possible impact";
+        return language == Language.SimplifiedChinese
+            ? "\u6E05\u7406\u540E\u7684\u53EF\u80FD\u5F71\u54CD"
+            : "Possible impact if cleaned";
     }
 
-    public static string GetRecommendedActionLabel(Language language)
+    public static string GetExpectedReclaimLabel(Language language)
     {
-        return language == Language.SimplifiedChinese ? "\u5EFA\u8BAE\u64CD\u4F5C" : "Recommended action";
+        return language == Language.SimplifiedChinese ? "\u9884\u8BA1\u53EF\u91CA\u653E" : "Expected reclaim";
     }
 
     public static string GetSafetyNoteLabel(Language language)
@@ -84,5 +86,16 @@ public static class ConsolePresentationStyle
     public static string GetStatusLabel(Language language)
     {
         return language == Language.SimplifiedChinese ? "\u72B6\u6001" : "Status";
+    }
+
+    public static bool IsBulkSelectableRecommendedItem(RiskLevel riskLevel, CleanupDecision decision, bool processGuardBlocked)
+    {
+        if (processGuardBlocked)
+        {
+            return false;
+        }
+
+        return riskLevel == RiskLevel.S1LowRisk
+            && decision == CleanupDecision.RecommendedToClean;
     }
 }

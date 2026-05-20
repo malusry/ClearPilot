@@ -242,17 +242,16 @@ static void RunRecommendedCleanup(AppSettings settings)
         var displayDecision = launcherRunning ? CleanupDecision.NotRecommendedToClean : candidate.CleanupDecision;
         var displayDecisionReason = launcherRunning
             ? GetAppRunningSkipReason(text)
-            : GetDecisionReasonForDisplayV45(text, candidate, displayDecision);
+            : GetDecisionReasonForDisplayV46(text, candidate, displayDecision);
         WriteResultCard(
             index + 1,
             FormatCleanupCandidateCategory(text, candidate),
-            FormatBytes(candidate.EstimatedBytes),
+            $"{text.Get(StringKey.RecommendedScanFiles)}: {candidate.FileCount}",
             [
                 CardDetailLine.WithHighlight(
                     $"{GetDecisionLabelV46(text)}: ",
                     FormatCleanupDecisionBadgeV46(text, displayDecision),
                     GetDecisionColorV46(displayDecision),
-                    $"   {GetRiskLabelV46(text)}: {FormatRiskBadge(candidate.RiskLevel)}   {text.Get(StringKey.RecommendedScanFiles)}: {candidate.FileCount}",
                     prefixColor: Theme.Heading),
                 CardDetailLine.WithHighlight(
                     $"{GetReasonLabelV46(text)}: ",
@@ -261,17 +260,22 @@ static void RunRecommendedCleanup(AppSettings settings)
                     prefixColor: Theme.Heading),
                 CardDetailLine.WithHighlight(
                     $"{GetImpactLabelV46(text)}: ",
-                    GetPossibleImpactForDisplayV45(text, candidate, displayDecision),
+                    GetPossibleImpactForDisplayV46(text, candidate, displayDecision),
                     Theme.Muted,
                     prefixColor: Theme.Heading),
                 CardDetailLine.WithHighlight(
-                    $"{GetRecommendedActionLabelV46(text)}: ",
-                    GetRecommendedActionForDisplayV45(text, candidate, displayDecision),
+                    $"{GetExpectedReclaimLabelV46(text)}: ",
+                    FormatBytes(candidate.EstimatedBytes),
+                    Theme.Text,
+                    prefixColor: Theme.Heading),
+                CardDetailLine.WithHighlight(
+                    $"{GetRiskLabelV46(text)}: ",
+                    FormatRiskBadge(candidate.RiskLevel),
                     Theme.Muted,
                     prefixColor: Theme.Heading),
                 CardDetailLine.WithHighlight(
                     $"{GetSafetyNoteLabelV46(text)}: ",
-                    GetSafetyNoteForDisplayV45(text, candidate, displayDecision),
+                    GetSafetyNoteForDisplayV46(text, candidate, displayDecision),
                     Theme.Muted,
                     prefixColor: Theme.Heading),
                 processGuardDetail
@@ -292,7 +296,7 @@ static void RunRecommendedCleanup(AppSettings settings)
     var selection = Console.ReadLine();
     Console.WriteLine();
 
-    var selectedRuleIds = ParseRecommendedSelection(selection, candidates);
+    var selectedRuleIds = ParseRecommendedSelection(selection, candidates, ruleMap, processInspector);
     if (selectedRuleIds.Count == 0)
     {
         WriteLineColor(text.Get(StringKey.RecommendedSelectionCancelled), Theme.Subtle);
@@ -1098,11 +1102,6 @@ static string GetImpactLabel(MessageCatalog text)
     return text.Language == Language.SimplifiedChinese ? "影响" : "Possible impact";
 }
 
-static string GetRecommendedActionLabel(MessageCatalog text)
-{
-    return text.Language == Language.SimplifiedChinese ? "建议操作" : "Recommended action";
-}
-
 static string GetSafetyNoteLabel(MessageCatalog text)
 {
     return text.Language == Language.SimplifiedChinese ? "安全说明" : "Safety note";
@@ -1114,97 +1113,6 @@ static string GetAppRunningSkipReason(MessageCatalog text)
     return text.Language == Language.SimplifiedChinese
         ? "已跳过，因为相关应用正在运行"
         : "Skipped because the app is running.";
-}
-
-static string GetDecisionReasonForDisplayV45(MessageCatalog text, CleanupCandidate candidate, CleanupDecision decision)
-{
-    if (text.Language != Language.SimplifiedChinese)
-    {
-        return candidate.CleanupDecisionReason;
-    }
-
-    return decision switch
-    {
-        CleanupDecision.RecommendedToClean => candidate.RuleId switch
-        {
-            "cp.s0.user-temp" => "这是可重建的用户临时文件。",
-            "cp.s1.windows-temp" => "这是可访问范围内的旧临时文件。",
-            "cp.s1.windows-inet-cache" => "这是明确的缓存数据，已排除身份和会话数据。",
-            "cp.s1.msstore-localcache" => "这是应用 LocalCache 缓存路径，已排除持久状态目录。",
-            "cp.s1.steam-httpcache" => "这是 Steam 可重建的界面缓存。",
-            _ when candidate.RuleId.Contains("cache", StringComparison.OrdinalIgnoreCase) => "这是可重建的缓存数据。",
-            _ => "该项目满足当前清理建议条件。"
-        },
-        CleanupDecision.NotRecommendedToClean => candidate.RuleId switch
-        {
-            "cp.s1.user-crash-dumps" => "这些崩溃转储可能仍有助于排查问题。",
-            _ when candidate.RuleId.Contains("log", StringComparison.OrdinalIgnoreCase) => "这些日志可能仍有诊断价值。",
-            _ when candidate.RuleId.Contains("dump", StringComparison.OrdinalIgnoreCase) => "这些转储文件可能仍有诊断价值。",
-            _ => "当前不建议清理该项目。"
-        },
-        CleanupDecision.AnalysisOnlyDoNotClean => "这是仅分析项，不会执行删除。",
-        CleanupDecision.Blocked => "该项目已被安全策略阻止。",
-        _ => candidate.CleanupDecisionReason
-    };
-}
-
-static string GetPossibleImpactForDisplayV45(MessageCatalog text, CleanupCandidate candidate, CleanupDecision decision)
-{
-    if (text.Language != Language.SimplifiedChinese)
-    {
-        return candidate.PossibleImpact;
-    }
-
-    return decision switch
-    {
-        CleanupDecision.RecommendedToClean => "相关应用下次启动时可能会重建缓存或重新加载资源。",
-        CleanupDecision.NotRecommendedToClean when candidate.RuleId.Contains("log", StringComparison.OrdinalIgnoreCase)
-            || candidate.RuleId.Contains("dump", StringComparison.OrdinalIgnoreCase)
-            || candidate.RuleId.Contains("crash", StringComparison.OrdinalIgnoreCase)
-            => "清理后可能丢失用于排查问题的诊断信息。",
-        CleanupDecision.NotRecommendedToClean => "当前清理收益可能低于潜在影响。",
-        CleanupDecision.AnalysisOnlyDoNotClean => "这是复核项，ClearPilot 不会删除。",
-        CleanupDecision.Blocked => "该路径受保护，无法执行清理。",
-        _ => candidate.PossibleImpact
-    };
-}
-
-static string GetRecommendedActionForDisplayV45(MessageCatalog text, CleanupCandidate candidate, CleanupDecision decision)
-{
-    if (text.Language != Language.SimplifiedChinese)
-    {
-        return candidate.RecommendedAction;
-    }
-
-    return decision switch
-    {
-        CleanupDecision.RecommendedToClean => "可以纳入推荐清理。",
-        CleanupDecision.NotRecommendedToClean when candidate.RuleId.Contains("log", StringComparison.OrdinalIgnoreCase)
-            || candidate.RuleId.Contains("dump", StringComparison.OrdinalIgnoreCase)
-            || candidate.RuleId.Contains("crash", StringComparison.OrdinalIgnoreCase)
-            => "如果你近期仍在排查问题，请保留。",
-        CleanupDecision.NotRecommendedToClean => "请先确认业务影响后再决定是否清理。",
-        CleanupDecision.AnalysisOnlyDoNotClean => "仅分析，不清理。",
-        CleanupDecision.Blocked => "该项目不可清理。",
-        _ => candidate.RecommendedAction
-    };
-}
-
-static string GetSafetyNoteForDisplayV45(MessageCatalog text, CleanupCandidate candidate, CleanupDecision decision)
-{
-    if (text.Language != Language.SimplifiedChinese)
-    {
-        return candidate.SafetyNote;
-    }
-
-    return decision switch
-    {
-        CleanupDecision.RecommendedToClean => "不会删除已安装游戏、存档或浏览器身份数据。",
-        CleanupDecision.NotRecommendedToClean => "相关安全门、路径校验和进程守卫仍然生效。",
-        CleanupDecision.AnalysisOnlyDoNotClean => "仅分析，不清理。",
-        CleanupDecision.Blocked => "已阻止：该目标受保护策略限制。",
-        _ => candidate.SafetyNote
-    };
 }
 
 static string GetDeepSpaceDecisionReasonForDisplayV45(MessageCatalog text, CleanupDecisionResult decision)
@@ -1283,14 +1191,84 @@ static string GetImpactLabelV46(MessageCatalog text)
     return ConsolePresentationStyle.GetImpactLabel(text.Language);
 }
 
-static string GetRecommendedActionLabelV46(MessageCatalog text)
+static string GetExpectedReclaimLabelV46(MessageCatalog text)
 {
-    return ConsolePresentationStyle.GetRecommendedActionLabel(text.Language);
+    return ConsolePresentationStyle.GetExpectedReclaimLabel(text.Language);
 }
 
 static string GetSafetyNoteLabelV46(MessageCatalog text)
 {
     return ConsolePresentationStyle.GetSafetyNoteLabel(text.Language);
+}
+
+static string GetDecisionReasonForDisplayV46(MessageCatalog text, CleanupCandidate candidate, CleanupDecision decision)
+{
+    if (text.Language != Language.SimplifiedChinese)
+    {
+        return candidate.CleanupDecisionReason;
+    }
+
+    return decision switch
+    {
+        CleanupDecision.RecommendedToClean => candidate.RuleId switch
+        {
+            "cp.s0.user-temp" => "这是可重建的用户临时文件。",
+            "cp.s1.windows-temp" => "这是可访问范围内的旧临时文件。",
+            "cp.s1.windows-inet-cache" => "这是明确的缓存数据，已排除身份与会话数据。",
+            "cp.s1.msstore-localcache" => "这是应用 LocalCache 缓存路径，已排除持久状态目录。",
+            "cp.s1.steam-httpcache" => "这是 Steam 可重建的界面缓存。",
+            _ when candidate.RuleId.Contains("cache", StringComparison.OrdinalIgnoreCase) => "这是可重建的缓存数据。",
+            _ => "该项目满足当前清理建议条件。"
+        },
+        CleanupDecision.NotRecommendedToClean => candidate.RuleId switch
+        {
+            "cp.s1.user-crash-dumps" => "这些崩溃转储可能仍有助于排查问题。",
+            _ when candidate.RuleId.Contains("log", StringComparison.OrdinalIgnoreCase) => "这些日志可能仍有诊断价值。",
+            _ when candidate.RuleId.Contains("dump", StringComparison.OrdinalIgnoreCase) => "这些转储文件可能仍有诊断价值。",
+            _ => "当前不建议清理该项目。"
+        },
+        CleanupDecision.AnalysisOnlyDoNotClean => "这是仅分析项，不会执行删除。",
+        CleanupDecision.Blocked => "该项目已被安全策略阻止。",
+        _ => candidate.CleanupDecisionReason
+    };
+}
+
+static string GetPossibleImpactForDisplayV46(MessageCatalog text, CleanupCandidate candidate, CleanupDecision decision)
+{
+    if (text.Language != Language.SimplifiedChinese)
+    {
+        return candidate.PossibleImpact;
+    }
+
+    return decision switch
+    {
+        CleanupDecision.RecommendedToClean => "相关应用下次启动时可能会重建缓存或重新加载资源。",
+        CleanupDecision.NotRecommendedToClean when candidate.RuleId.Contains("log", StringComparison.OrdinalIgnoreCase)
+            || candidate.RuleId.Contains("dump", StringComparison.OrdinalIgnoreCase)
+            || candidate.RuleId.Contains("crash", StringComparison.OrdinalIgnoreCase)
+            => "清理后可能丢失用于排查问题的诊断信息。",
+        CleanupDecision.NotRecommendedToClean => "当前清理收益可能低于潜在影响。",
+        CleanupDecision.AnalysisOnlyDoNotClean => "这是复核项，ClearPilot 不会删除。",
+        CleanupDecision.Blocked => "该路径受保护，无法执行清理。",
+        _ => candidate.PossibleImpact
+    };
+}
+
+static string GetSafetyNoteForDisplayV46(MessageCatalog text, CleanupCandidate candidate, CleanupDecision decision)
+{
+    if (text.Language != Language.SimplifiedChinese)
+    {
+        return candidate.SafetyNote;
+    }
+
+    return decision switch
+    {
+        CleanupDecision.RecommendedToClean => "不会删除已安装游戏、存档或浏览器身份数据。",
+        CleanupDecision.NotRecommendedToClean => "相关安全门、路径校验和进程守卫仍然生效。",
+        CleanupDecision.AnalysisOnlyDoNotClean => "仅分析，不清理。",
+        CleanupDecision.Blocked => "已阻止：该目标受保护策略限制。",
+        _ => candidate.SafetyNote
+    };
 }
 
 static CardDetailLine BuildProcessGuardDetailLineV46(MessageCatalog text, string processGuardText, bool launcherRunning)
@@ -1355,8 +1333,8 @@ static string GetExplicitConfirmationPromptV45(MessageCatalog text)
 static string GetDeepSpaceNoDeleteNoticeV45(MessageCatalog text)
 {
     return text.Language == Language.SimplifiedChinese
-        ? "仅分析，不清理：不会执行删除。"
-        : "Analysis only, do not clean. No deletion will be performed.";
+        ? "仅分析，不清理：Deep Space 不会执行删除。Downloads 仅用于存储占用了解；Desktop/Documents/Pictures/Videos/Music 默认不扫描。"
+        : "Analysis only, do not clean. Deep Space does not delete files. Downloads is scanned only for storage understanding, and Desktop/Documents/Pictures/Videos/Music are not scanned by default.";
 }
 
 static string GetDeepSpaceActionHintV45(MessageCatalog text)
@@ -1700,7 +1678,11 @@ static void ClearVisibleWindowFallback()
     }
 }
 
-static IReadOnlySet<string> ParseRecommendedSelection(string? selection, IReadOnlyList<CleanupCandidate> candidates)
+static IReadOnlySet<string> ParseRecommendedSelection(
+    string? selection,
+    IReadOnlyList<CleanupCandidate> candidates,
+    IReadOnlyDictionary<string, CleanupRule> ruleMap,
+    IProcessInspector processInspector)
 {
     if (string.IsNullOrWhiteSpace(selection) || selection.Trim() == "0")
     {
@@ -1710,6 +1692,7 @@ static IReadOnlySet<string> ParseRecommendedSelection(string? selection, IReadOn
     if (string.Equals(selection.Trim(), "A", StringComparison.OrdinalIgnoreCase))
     {
         return candidates
+            .Where(candidate => IsBulkSelectableRecommendedCandidate(candidate, ruleMap, processInspector))
             .Select(candidate => candidate.RuleId)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
@@ -1732,6 +1715,23 @@ static IReadOnlySet<string> ParseRecommendedSelection(string? selection, IReadOn
     }
 
     return selectedRuleIds;
+}
+
+static bool IsBulkSelectableRecommendedCandidate(
+    CleanupCandidate candidate,
+    IReadOnlyDictionary<string, CleanupRule> ruleMap,
+    IProcessInspector processInspector)
+{
+    if (!ruleMap.ContainsKey(candidate.RuleId))
+    {
+        return false;
+    }
+
+    var processGuardBlocked = IsProcessGuardBlocked(candidate, ruleMap, processInspector);
+    return ConsolePresentationStyle.IsBulkSelectableRecommendedItem(
+        candidate.RiskLevel,
+        candidate.CleanupDecision,
+        processGuardBlocked);
 }
 
 static DeepSpaceAnalysisOptions CreateDeepSpaceOptions()
@@ -1833,11 +1833,6 @@ static string FormatDeepSpaceExplanation(MessageCatalog text, DeepSpaceItem item
     return DeepSpaceAdviceFormatter.FormatExplanation(text.Language, item);
 }
 
-static string FormatDeepSpaceSuggestedAction(MessageCatalog text, DeepSpaceItem item)
-{
-    return DeepSpaceAdviceFormatter.FormatSuggestedAction(text.Language, item);
-}
-
 static void RenderDeepAnalysisView(
     MessageCatalog text,
     DeepSpaceAnalysisSummary summary,
@@ -1916,11 +1911,6 @@ static void WriteDeepSpaceItems(MessageCatalog text, IReadOnlyList<DeepSpaceItem
                     CardDetailLine.WithHighlight(
                         $"{GetImpactLabelV46(text)}: ",
                         GetDeepSpaceImpactForDisplayV45(text, item, decision, advice),
-                        Theme.Muted,
-                        prefixColor: Theme.Heading),
-                    CardDetailLine.WithHighlight(
-                        $"{GetRecommendedActionLabelV46(text)}: ",
-                        FormatDeepSpaceSuggestedAction(text, item),
                         Theme.Muted,
                         prefixColor: Theme.Heading),
                     CardDetailLine.WithHighlight(

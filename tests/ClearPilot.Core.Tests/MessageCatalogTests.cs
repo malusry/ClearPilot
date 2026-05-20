@@ -17,14 +17,16 @@ public sealed class MessageCatalogTests
     }
 
     [Fact]
-    public void SimplifiedChineseCatalogProvidesMainMenuAndSafetyLabels()
+    public void SimplifiedChineseCatalogProvidesMainMenuAndDeepSpaceSafetyLabels()
     {
         var catalog = MessageCatalog.For(Language.SimplifiedChinese);
 
         Assert.Equal(Language.SimplifiedChinese, catalog.Language);
         Assert.Equal("快速安全清理", catalog.Get(StringKey.MainMenuQuickSafeClean));
         Assert.Equal("设置", catalog.Get(StringKey.MainMenuSettings));
-        Assert.Equal("仅分析，不清理：不会执行删除。", catalog.Get(StringKey.DeepAnalysisReviewOnlyNotice));
-        Assert.Equal("操作：选择项目编号后，必须明确确认。默认不执行。", catalog.Get(StringKey.RecommendedActionHint));
+        Assert.Equal(
+            "仅分析：Deep Space 不删除文件。Downloads 仅用于存储占用了解；Desktop/Documents/Pictures/Videos/Music 默认不扫描。",
+            catalog.Get(StringKey.DeepAnalysisReviewOnlyNotice));
+        Assert.Contains("默认不执行", catalog.Get(StringKey.RecommendedActionHint));
     }
 }

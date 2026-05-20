@@ -8,7 +8,7 @@ namespace ClearPilot.Core.Tests;
 public sealed class DeepSpaceReportWriterTests
 {
     [Fact]
-    public void RenderCreatesStructuredEnglishReportWithDecisionAndRecommendationDetails()
+    public void RenderCreatesStructuredEnglishReportWithoutSuggestedActionField()
     {
         var result = CreateResult();
 
@@ -22,7 +22,6 @@ public sealed class DeepSpaceReportWriterTests
         Assert.Contains("## At a Glance", report);
         Assert.Contains("| Metric | Value |", report);
         Assert.Contains("## Type Breakdown", report);
-        Assert.Contains("`[", report);
         Assert.Contains("## Top Space Sources", report);
         Assert.Contains("Decision", report);
         Assert.Contains("Decision reason", report);
@@ -31,11 +30,13 @@ public sealed class DeepSpaceReportWriterTests
         Assert.Contains("Possible impact", report);
         Assert.Contains("Safety note", report);
         Assert.Contains("Analysis only", report);
+        Assert.DoesNotContain("Suggested action", report, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Recommended action", report, StringComparison.OrdinalIgnoreCase);
         Assert.False(report.Contains("\u001b[", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void RenderIncludesChineseDecisionLabelsWhenSimplifiedChineseIsSelected()
+    public void RenderIncludesReadableChineseAndReadOnlyFramingWhenSimplifiedChineseIsSelected()
     {
         var result = CreateResult();
 
@@ -47,19 +48,17 @@ public sealed class DeepSpaceReportWriterTests
 
         Assert.Contains("# ClearPilot 深度空间分析报告", report);
         Assert.Contains("## 概览", report);
-        Assert.Contains("| 指标 | 值 |", report);
+        Assert.Contains("| 指标 | 数值 |", report);
         Assert.Contains("| 排名 | 类型 | 大小 | 位置 |", report);
         Assert.Contains("结论", report);
-        Assert.Contains("仅分析，不清理", report);
-        Assert.Contains("说明", report);
-        Assert.Contains("建议操作", report);
-        Assert.Contains("影响", report);
+        Assert.Contains("仅分析", report);
+        Assert.Contains("不会删除文件", report);
+        Assert.Contains("Downloads 仅用于存储占用了解", report);
+        Assert.Contains("Desktop/Documents/Pictures/Videos/Music 默认不扫描", report);
         Assert.Contains("安全说明", report);
-        Assert.Contains("请使用 Windows 设置、存储感知或磁盘清理", report);
-        Assert.Contains("这是游戏启动器相关的复核项", report);
-        Assert.Contains("着色器缓存", report);
-        Assert.DoesNotContain("Impact depends on the owning app or workflow.", report);
-        Assert.DoesNotContain("Analysis only. ClearPilot will not delete this item.", report);
+        Assert.DoesNotContain("建议操作", report, StringComparison.Ordinal);
+        Assert.DoesNotContain("Recommended action", report, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Suggested action", report, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("\u001b[", report, StringComparison.Ordinal);
         Assert.DoesNotContain("\uFFFD", report, StringComparison.Ordinal);
     }
@@ -81,6 +80,22 @@ public sealed class DeepSpaceReportWriterTests
         var content = File.ReadAllText(path);
         Assert.Contains("Deep Space Analysis Report", content);
         Assert.False(content.Contains("\u001b[", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void DeepSpace_Report_StatesReadOnlyNoDelete()
+    {
+        var result = CreateResult();
+        var report = DeepSpaceReportWriter.Render(
+            result,
+            ["C:\\Users\\Example\\Downloads"],
+            Language.English,
+            new DateTimeOffset(2026, 5, 17, 12, 0, 0, TimeSpan.Zero));
+
+        Assert.Contains("Analysis only.", report);
+        Assert.Contains("does not delete files in Deep Space", report);
+        Assert.Contains("Downloads is scanned only for storage understanding", report);
+        Assert.Contains("Desktop/Documents/Pictures/Videos/Music", report);
     }
 
     private static DeepSpaceAnalysisResult CreateResult()

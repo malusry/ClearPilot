@@ -346,6 +346,67 @@ public sealed class DeepSpaceAnalyzerTests
         Assert.True(File.Exists(cacheFile));
     }
 
+    [Fact]
+    public void DeepSpace_DefaultRoots_ExcludePersonalLibraries()
+    {
+        var options = DeepSpaceAnalyzer.CreateDefaultOptions();
+        var roots = options.RootPaths.Select(NormalizePath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var personalLibraries = new[]
+        {
+            Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            Environment.GetFolderPath(Environment.SpecialFolder.MyPictures),
+            Environment.GetFolderPath(Environment.SpecialFolder.MyVideos),
+            Environment.GetFolderPath(Environment.SpecialFolder.MyMusic)
+        };
+
+        foreach (var library in personalLibraries.Where(path => !string.IsNullOrWhiteSpace(path)))
+        {
+            Assert.DoesNotContain(NormalizePath(library), roots);
+        }
+    }
+
+    [Fact]
+    public void DeepSpace_DefaultRoots_CanIncludeDownloadsReadOnly()
+    {
+        var options = DeepSpaceAnalyzer.CreateDefaultOptions();
+        var roots = options.RootPaths.Select(NormalizePath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var downloads = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        downloads = string.IsNullOrWhiteSpace(downloads) ? string.Empty : Path.Combine(downloads, "Downloads");
+
+        if (!string.IsNullOrWhiteSpace(downloads) && Directory.Exists(downloads))
+        {
+            Assert.Contains(NormalizePath(downloads), roots);
+        }
+    }
+
+    [Fact]
+    public void DeepSpace_DoesNotDeleteFiles()
+    {
+        using var workspace = TestWorkspace.Create();
+        var file = workspace.CreateFile(Path.Combine("Downloads", "keep.bin"), 4096, DateTime.UtcNow.AddDays(-2));
+        var analyzer = new DeepSpaceAnalyzer(new ProtectedPathPolicy([]));
+
+        var result = analyzer.Analyze(CreateOptions(workspace.Root), DateTimeOffset.UtcNow);
+
+        Assert.NotEmpty(result);
+        Assert.True(File.Exists(file));
+    }
+
+    [Fact]
+    public void DeepSpace_PersonalLibraries_NotDefaultScanScope()
+    {
+        var options = DeepSpaceAnalyzer.CreateDefaultOptions();
+        var roots = options.RootPaths.Select(NormalizePath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var blockedSegments = new[] { "Desktop", "Documents", "Pictures", "Videos", "Music" };
+
+        foreach (var root in roots)
+        {
+            var segments = root.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries);
+            Assert.DoesNotContain(segments, segment => blockedSegments.Contains(segment, StringComparer.OrdinalIgnoreCase));
+        }
+    }
+
     private static DeepSpaceAnalysisOptions CreateOptions(string root)
     {
         return new DeepSpaceAnalysisOptions
@@ -357,6 +418,11 @@ public sealed class DeepSpaceAnalyzerTests
             MaxDepth = 5,
             MaxResults = 20
         };
+    }
+
+    private static string NormalizePath(string path)
+    {
+        return Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
     }
 
     private sealed class TestWorkspace : IDisposable
