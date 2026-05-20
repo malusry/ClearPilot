@@ -372,7 +372,9 @@ static void RunQuickSafeClean(AppSettings settings)
     var previewCandidates = scanner.Scan(s0Rules, now).ToArray();
 
     WriteCleanupPreviewSummary(text, previewCandidates, text.Get(StringKey.QuickSafeCleanPreviewSafety));
-    WriteLineColor(GetQuickSafetyBoundaryMessageV45(text), Theme.Warning);
+    WriteLineColor(text.Get(StringKey.QuickSafeCleanBoundaryS0Only), Theme.Warning);
+    WriteLineColor(text.Get(StringKey.QuickSafeCleanBoundaryKnownTargetsOnly), Theme.Warning);
+    WriteLineColor(text.Get(StringKey.QuickSafeCleanBoundaryBroaderElsewhere), Theme.Warning);
     Console.WriteLine();
 
     var result = cleaner.Run(s0Rules, settings.DryRun, now);
@@ -395,6 +397,13 @@ static void RunQuickSafeClean(AppSettings settings)
 
     WriteLabelValue(text.Get(StringKey.QuickSafeCleanSkippedItems), result.SkippedCount.ToString(), Theme.Note);
     WriteLabelValue(text.Get(StringKey.QuickSafeCleanFailedItems), result.FailedCount.ToString(), result.FailedCount == 0 ? Theme.Muted : Theme.Danger);
+    WriteLineColor(text.Get(StringKey.QuickSafeCleanFailureNoElevation), Theme.Warning);
+
+    if (result.SkippedCount > 0)
+    {
+        WriteLineColor(text.Get(StringKey.QuickSafeCleanSkippedUnchangedNote), Theme.Note);
+        WriteQuickSafeSkippedReasonSummary(text, result);
+    }
 
     if (!string.IsNullOrWhiteSpace(result.LogPath))
     {
@@ -1281,11 +1290,67 @@ static CardDetailLine BuildProcessGuardDetailLineV46(MessageCatalog text, string
         prefixColor: Theme.Heading);
 }
 
-static string GetQuickSafetyBoundaryMessageV45(MessageCatalog text)
+static void WriteQuickSafeSkippedReasonSummary(MessageCatalog text, CleanupRunResult result)
 {
-    return text.Language == Language.SimplifiedChinese
-        ? "仅包含 S0 且建议清理的项目。不会删除文档、已安装游戏、浏览器身份数据或系统管理缓存。"
-        : "S0 + Recommended only. Will not remove documents, installed games, browser identity data, or system-managed caches.";
+    var skippedItems = result.Items
+        .Where(item => item.Action == CleanupItemAction.Skipped)
+        .ToArray();
+    if (skippedItems.Length == 0)
+    {
+        return;
+    }
+
+    var buckets = skippedItems
+        .GroupBy(item => ClassifyQuickSafeSkippedReasonKey(text, item), StringComparer.Ordinal)
+        .Select(group => new { Label = group.Key, Count = group.Count() })
+        .OrderByDescending(entry => entry.Count)
+        .ThenBy(entry => entry.Label, StringComparer.Ordinal)
+        .ToArray();
+
+    WriteLineColor($"{text.Get(StringKey.QuickSafeCleanSkippedReasonSummary)}:", Theme.Muted);
+    foreach (var bucket in buckets)
+    {
+        WriteLabelValue(bucket.Label, bucket.Count.ToString(), Theme.Subtle);
+    }
+}
+
+static string ClassifyQuickSafeSkippedReasonKey(MessageCatalog text, CleanupItemResult item)
+{
+    var reason = item.SafetyDecision?.SkippedReason ?? item.Message ?? item.ProcessGuardResult ?? string.Empty;
+    if (string.IsNullOrWhiteSpace(reason))
+    {
+        return text.Get(StringKey.QuickSafeCleanSkippedReasonOther);
+    }
+
+    var normalized = reason.Trim().ToLowerInvariant();
+    if (normalized.Contains("locked", StringComparison.Ordinal)
+        || normalized.Contains("in use", StringComparison.Ordinal)
+        || normalized.Contains("used by", StringComparison.Ordinal)
+        || normalized.Contains("running", StringComparison.Ordinal))
+    {
+        return text.Get(StringKey.QuickSafeCleanSkippedReasonLocked);
+    }
+
+    if (normalized.Contains("access denied", StringComparison.Ordinal)
+        || normalized.Contains("unauthorized", StringComparison.Ordinal)
+        || normalized.Contains("forbidden", StringComparison.Ordinal)
+        || normalized.Contains("permission", StringComparison.Ordinal))
+    {
+        return text.Get(StringKey.QuickSafeCleanSkippedReasonInaccessible);
+    }
+
+    if (normalized.Contains("outsidecleanuproot", StringComparison.Ordinal)
+        || normalized.Contains("outside the cleanup root", StringComparison.Ordinal)
+        || normalized.Contains("notinknownsafecacheroot", StringComparison.Ordinal)
+        || normalized.Contains("protected", StringComparison.Ordinal)
+        || normalized.Contains("harddeniedtarget", StringComparison.Ordinal)
+        || normalized.Contains("blocked", StringComparison.Ordinal)
+        || normalized.Contains("safety", StringComparison.Ordinal))
+    {
+        return text.Get(StringKey.QuickSafeCleanSkippedReasonOutsideBoundary);
+    }
+
+    return text.Get(StringKey.QuickSafeCleanSkippedReasonOther);
 }
 
 static string GetRecommendationBoundaryMessageV45(MessageCatalog text)

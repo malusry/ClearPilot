@@ -22,11 +22,23 @@ public sealed class MessageCatalogTests
         var catalog = MessageCatalog.For(Language.SimplifiedChinese);
 
         Assert.Equal(Language.SimplifiedChinese, catalog.Language);
-        Assert.Equal("快速安全清理", catalog.Get(StringKey.MainMenuQuickSafeClean));
-        Assert.Equal("设置", catalog.Get(StringKey.MainMenuSettings));
-        Assert.Equal(
-            "仅分析：Deep Space 不删除文件。Downloads 仅用于存储占用了解；Desktop/Documents/Pictures/Videos/Music 默认不扫描。",
-            catalog.Get(StringKey.DeepAnalysisReviewOnlyNotice));
-        Assert.Contains("默认不执行", catalog.Get(StringKey.RecommendedActionHint));
+        Assert.Equal("\u5FEB\u901F\u5B89\u5168\u6E05\u7406", catalog.Get(StringKey.MainMenuQuickSafeClean));
+        Assert.Equal("\u8BBE\u7F6E", catalog.Get(StringKey.MainMenuSettings));
+        Assert.Contains("\u4EC5\u5206\u6790", catalog.Get(StringKey.DeepAnalysisReviewOnlyNotice), StringComparison.Ordinal);
+        Assert.Contains("Downloads", catalog.Get(StringKey.DeepAnalysisReviewOnlyNotice), StringComparison.Ordinal);
+        Assert.Contains("\u9ED8\u8BA4\u4E0D\u6267\u884C", catalog.Get(StringKey.RecommendedActionHint));
+    }
+
+    [Fact]
+    public void QuickSafeCatalogProvidesBoundaryAndFailurePolicyLabels()
+    {
+        var english = MessageCatalog.For(Language.English);
+        var zhCn = MessageCatalog.For(Language.SimplifiedChinese);
+
+        Assert.Contains("S0-only", english.Get(StringKey.QuickSafeCleanBoundaryS0Only), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("does not retry with elevated privileges", english.Get(StringKey.QuickSafeCleanFailureNoElevation), StringComparison.OrdinalIgnoreCase);
+
+        Assert.Contains("\u4EC5 S0", zhCn.Get(StringKey.QuickSafeCleanBoundaryS0Only), StringComparison.Ordinal);
+        Assert.Contains("\u4E0D\u4F1A\u4F7F\u7528\u63D0\u5347\u6743\u9650\u91CD\u8BD5", zhCn.Get(StringKey.QuickSafeCleanFailureNoElevation), StringComparison.Ordinal);
     }
 }
