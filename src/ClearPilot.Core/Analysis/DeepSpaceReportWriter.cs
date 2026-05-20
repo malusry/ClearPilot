@@ -77,6 +77,36 @@ public sealed class DeepSpaceReportWriter
         builder.AppendLine($"| {text.ReviewFootprint} | {FormatBytes(result.Summary.FindingBytes)} |");
         builder.AppendLine();
 
+        var decisionStats = items
+            .Select(item => CleanupDecisionAdvisor.ForDeepSpaceItem(item, RecommendationAdvisor.ForDeepSpaceItem(item)).Decision)
+            .ToArray();
+        var recommendedCount = decisionStats.Count(decision => decision == CleanupDecision.RecommendedToClean);
+        var notRecommendedCount = decisionStats.Count(decision => decision == CleanupDecision.NotRecommendedToClean);
+        var analysisOnlyCount = decisionStats.Count(decision => decision == CleanupDecision.AnalysisOnlyDoNotClean);
+        var blockedCount = decisionStats.Count(decision => decision == CleanupDecision.Blocked);
+        var intentionallyUntouchedCount = items.Length;
+
+        builder.AppendLine($"## {text.ExecutionStatus}");
+        builder.AppendLine();
+        builder.AppendLine($"| {text.Status} | {text.Count} |");
+        builder.AppendLine("| --- | ---: |");
+        builder.AppendLine($"| {text.Cleaned} | 0 |");
+        builder.AppendLine($"| {text.Skipped} | 0 |");
+        builder.AppendLine($"| {text.Failed} | 0 |");
+        builder.AppendLine($"| {text.IntentionallyUntouched} | {intentionallyUntouchedCount} |");
+        builder.AppendLine();
+
+        builder.AppendLine($"## {text.DecisionBreakdown}");
+        builder.AppendLine();
+        builder.AppendLine($"| {text.Decision} | {text.Count} |");
+        builder.AppendLine("| --- | ---: |");
+        builder.AppendLine($"| {text.RecommendedToClean} | {recommendedCount} |");
+        builder.AppendLine($"| {text.NotRecommendedToClean} | {notRecommendedCount} |");
+        builder.AppendLine($"| {text.AnalysisOnlyDoNotClean} | {analysisOnlyCount} |");
+        builder.AppendLine($"| {text.Blocked} | {blockedCount} |");
+        builder.AppendLine($"| {text.IntentionallyUntouched} | {intentionallyUntouchedCount} |");
+        builder.AppendLine();
+
         builder.AppendLine($"## {text.ScanScope}");
         builder.AppendLine();
         foreach (var root in scanRoots)
@@ -126,13 +156,12 @@ public sealed class DeepSpaceReportWriter
                 builder.AppendLine();
                 builder.AppendLine($"- **{text.Size}:** {FormatBytes(item.SizeBytes)}");
                 builder.AppendLine($"- **{text.Decision}:** `{FormatDecision(language, decision.Decision)}`");
-                builder.AppendLine($"- **{text.DecisionReason}:** {FormatDecisionReason(language, decision)}");
+                builder.AppendLine($"- **{text.Reason}:** {FormatDecisionReason(language, decision)}");
+                builder.AppendLine($"- **{text.PossibleImpactIfCleaned}:** {DeepSpaceAdviceFormatter.FormatPossibleImpact(language, item, advice.PossibleImpact)}");
+                builder.AppendLine($"- **{text.ExpectedReclaim}:** {FormatExpectedReclaim(language, item, decision)}");
                 builder.AppendLine($"- **{text.Risk}:** `{FormatRisk(item.RiskLevel)}`");
-                builder.AppendLine($"- **{text.Recommendation}:** `{FormatRecommendation(language, advice.Recommendation)}`");
-                builder.AppendLine($"- **{text.AdviceKey}:** `{advice.AdviceKey}`");
                 builder.AppendLine($"- **{text.LastModified}:** {FormatDate(item.LastWriteTime)}");
                 builder.AppendLine($"- **{text.Explanation}:** {DeepSpaceAdviceFormatter.FormatExplanation(language, item)}");
-                builder.AppendLine($"- **{text.PossibleImpact}:** {DeepSpaceAdviceFormatter.FormatPossibleImpact(language, item, advice.PossibleImpact)}");
                 builder.AppendLine($"- **{text.SafetyNote}:** {DeepSpaceAdviceFormatter.FormatSafetyNote(language, item, advice.SafetyNote)}");
                 builder.AppendLine();
             }
@@ -215,32 +244,6 @@ public sealed class DeepSpaceReportWriter
         };
     }
 
-    private static string FormatRecommendation(Language language, RecommendationLevel recommendation)
-    {
-        if (language == Language.SimplifiedChinese)
-        {
-            return recommendation switch
-            {
-                RecommendationLevel.Recommended => "推荐",
-                RecommendationLevel.Optional => "可选",
-                RecommendationLevel.NotRecommended => "不推荐",
-                RecommendationLevel.ReviewOnly => "仅复核",
-                RecommendationLevel.Blocked => "已阻止",
-                _ => recommendation.ToString()
-            };
-        }
-
-        return recommendation switch
-        {
-            RecommendationLevel.Recommended => "Recommended",
-            RecommendationLevel.Optional => "Optional",
-            RecommendationLevel.NotRecommended => "Not Recommended",
-            RecommendationLevel.ReviewOnly => "Review Only",
-            RecommendationLevel.Blocked => "Blocked",
-            _ => recommendation.ToString()
-        };
-    }
-
     private static string FormatDecision(Language language, CleanupDecision decision)
     {
         if (language == Language.SimplifiedChinese)
@@ -276,10 +279,24 @@ public sealed class DeepSpaceReportWriter
         {
             CleanupDecision.AnalysisOnlyDoNotClean => "这是复核项，仅分析不清理。",
             CleanupDecision.NotRecommendedToClean => "不建议直接清理，请先评估影响。",
-            CleanupDecision.Blocked => "该项目已被阻止。",
+            CleanupDecision.Blocked => "受安全策略阻止。ClearPilot 在任何模式下都不会清理该目标。",
             CleanupDecision.RecommendedToClean => "建议清理。",
             _ => decision.DecisionReason
         };
+    }
+
+    private static string FormatExpectedReclaim(Language language, DeepSpaceItem item, CleanupDecisionResult decision)
+    {
+        if (decision.Decision == CleanupDecision.Blocked)
+        {
+            return language == Language.SimplifiedChinese
+                ? "不适用（已阻止，保持不变）。"
+                : "Not applicable (blocked; left unchanged).";
+        }
+
+        return language == Language.SimplifiedChinese
+            ? $"仅供估算：{FormatBytes(item.SizeBytes)}（Deep Space 仅分析，不执行删除）"
+            : $"Estimate only: {FormatBytes(item.SizeBytes)} (Deep Space is analysis-only and does not delete files)";
     }
 
     private static string FormatDate(DateTimeOffset? value)
@@ -336,6 +353,17 @@ public sealed class DeepSpaceReportWriter
         string TypeBreakdown,
         string TopSources,
         string Findings,
+        string ExecutionStatus,
+        string Status,
+        string Cleaned,
+        string Skipped,
+        string Failed,
+        string IntentionallyUntouched,
+        string DecisionBreakdown,
+        string RecommendedToClean,
+        string NotRecommendedToClean,
+        string AnalysisOnlyDoNotClean,
+        string Blocked,
         string Count,
         string Share,
         string Rank,
@@ -343,13 +371,12 @@ public sealed class DeepSpaceReportWriter
         string Location,
         string Size,
         string Decision,
-        string DecisionReason,
+        string Reason,
+        string PossibleImpactIfCleaned,
+        string ExpectedReclaim,
         string Risk,
-        string Recommendation,
-        string AdviceKey,
         string LastModified,
         string Explanation,
-        string PossibleImpact,
         string SafetyNote,
         string Footer)
     {
@@ -376,6 +403,17 @@ public sealed class DeepSpaceReportWriter
             "Type Breakdown",
             "Top Space Sources",
             "Findings",
+            "Execution Status",
+            "Status",
+            "Cleaned",
+            "Skipped",
+            "Failed",
+            "Intentionally untouched",
+            "Decision Breakdown",
+            "Recommended to clean",
+            "Not recommended to clean",
+            "Analysis only, do not clean",
+            "Blocked",
             "Count",
             "Share",
             "Rank",
@@ -383,13 +421,12 @@ public sealed class DeepSpaceReportWriter
             "Location",
             "Size",
             "Decision",
-            "Decision reason",
+            "Reason",
+            "Possible impact if cleaned",
+            "Expected reclaim",
             "Risk",
-            "Recommendation",
-            "Advice key",
             "Last modified",
             "Explanation",
-            "Possible impact",
             "Safety note",
             "ClearPilot reports review candidates only. Open locations and decide manually before changing files.");
 
@@ -409,6 +446,17 @@ public sealed class DeepSpaceReportWriter
             "类型分布",
             "主要空间来源",
             "结果详情",
+            "执行状态",
+            "状态",
+            "已清理",
+            "已跳过",
+            "失败",
+            "有意保持不变",
+            "结论分布",
+            "建议清理",
+            "不建议清理",
+            "仅分析，不清理",
+            "已阻止",
             "数量",
             "占比",
             "排名",
@@ -416,13 +464,12 @@ public sealed class DeepSpaceReportWriter
             "位置",
             "大小",
             "结论",
-            "结论原因",
+            "原因",
+            "清理后的可能影响",
+            "预计可释放",
             "风险",
-            "推荐",
-            "建议键",
             "最后修改",
             "说明",
-            "可能影响",
             "安全说明",
             "ClearPilot 只报告需要复核的候选项，请手动确认后再处理。");
     }
