@@ -5,6 +5,18 @@ namespace ClearPilot.Cli;
 
 public static class ConsolePresentationStyle
 {
+    public enum ModeColorRole
+    {
+        QuickSafeClean,
+        RecommendedCleanup,
+        DeepSpaceAnalysis,
+        ReportsHistory,
+        Settings,
+        SafetyBoundary,
+        Blocked,
+        MutedDetail
+    }
+
     public static bool ShouldUseColor(bool isOutputRedirected, string? noColorEnvironmentValue)
     {
         if (isOutputRedirected)
@@ -27,16 +39,32 @@ public static class ConsolePresentationStyle
         };
     }
 
+    public static ConsoleColor GetModeColor(ModeColorRole role)
+    {
+        return role switch
+        {
+            ModeColorRole.QuickSafeClean => ConsoleColor.DarkGreen,
+            ModeColorRole.RecommendedCleanup => ConsoleColor.DarkYellow,
+            ModeColorRole.DeepSpaceAnalysis => ConsoleColor.Cyan,
+            ModeColorRole.ReportsHistory => ConsoleColor.Blue,
+            ModeColorRole.Settings => ConsoleColor.Magenta,
+            ModeColorRole.SafetyBoundary => ConsoleColor.Yellow,
+            ModeColorRole.Blocked => ConsoleColor.Red,
+            ModeColorRole.MutedDetail => ConsoleColor.DarkGray,
+            _ => ConsoleColor.Gray
+        };
+    }
+
     public static string GetDecisionBadge(Language language, CleanupDecision decision)
     {
         if (language == Language.SimplifiedChinese)
         {
             return decision switch
             {
-                CleanupDecision.RecommendedToClean => "\u5EFA\u8BAE\u6E05\u7406",
-                CleanupDecision.NotRecommendedToClean => "\u4E0D\u5EFA\u8BAE\u6E05\u7406",
-                CleanupDecision.AnalysisOnlyDoNotClean => "\u4EC5\u5206\u6790\uFF0C\u4E0D\u6E05\u7406",
-                CleanupDecision.Blocked => "\u5DF2\u963B\u6B62",
+                CleanupDecision.RecommendedToClean => "建议清理",
+                CleanupDecision.NotRecommendedToClean => "不建议清理",
+                CleanupDecision.AnalysisOnlyDoNotClean => "仅分析，不清理",
+                CleanupDecision.Blocked => "已阻止",
                 _ => decision.ToString()
             };
         }
@@ -53,39 +81,74 @@ public static class ConsolePresentationStyle
 
     public static string GetDecisionLabel(Language language)
     {
-        return language == Language.SimplifiedChinese ? "\u7ED3\u8BBA" : "Decision";
+        return language == Language.SimplifiedChinese ? "结论" : "Decision";
     }
 
     public static string GetRiskLabel(Language language)
     {
-        return language == Language.SimplifiedChinese ? "\u98CE\u9669" : "Risk";
+        return language == Language.SimplifiedChinese ? "风险" : "Risk";
+    }
+
+    public static string GetPathLabel(Language language)
+    {
+        return language == Language.SimplifiedChinese ? "路径" : "Path";
+    }
+
+    public static string GetInsightLabel(Language language)
+    {
+        return language == Language.SimplifiedChinese ? "说明" : "Insight";
+    }
+
+    public static string GetBoundaryLabel(Language language)
+    {
+        return language == Language.SimplifiedChinese ? "边界" : "Boundary";
     }
 
     public static string GetReasonLabel(Language language)
     {
-        return language == Language.SimplifiedChinese ? "\u539F\u56E0" : "Reason";
+        return language == Language.SimplifiedChinese ? "原因" : "Reason";
     }
 
     public static string GetImpactLabel(Language language)
     {
         return language == Language.SimplifiedChinese
-            ? "\u6E05\u7406\u540E\u7684\u53EF\u80FD\u5F71\u54CD"
+            ? "清理后的可能影响"
             : "Possible impact if cleaned";
     }
 
     public static string GetExpectedReclaimLabel(Language language)
     {
-        return language == Language.SimplifiedChinese ? "\u9884\u8BA1\u53EF\u91CA\u653E" : "Expected reclaim";
+        return language == Language.SimplifiedChinese ? "预计可释放" : "Expected reclaim";
     }
 
     public static string GetSafetyNoteLabel(Language language)
     {
-        return language == Language.SimplifiedChinese ? "\u5B89\u5168\u8BF4\u660E" : "Safety note";
+        return language == Language.SimplifiedChinese ? "安全说明" : "Safety note";
     }
 
     public static string GetStatusLabel(Language language)
     {
-        return language == Language.SimplifiedChinese ? "\u72B6\u6001" : "Status";
+        return language == Language.SimplifiedChinese ? "状态" : "Status";
+    }
+
+    public static ConsoleColor GetDeepSpacePrimaryColor()
+    {
+        return ConsoleColor.Cyan;
+    }
+
+    public static ConsoleColor GetDeepSpaceCardColor()
+    {
+        return ConsoleColor.DarkMagenta;
+    }
+
+    public static ConsoleColor GetDeepSpaceSizeColor()
+    {
+        return ConsoleColor.Cyan;
+    }
+
+    public static ConsoleColor GetDeepSpacePathColor()
+    {
+        return ConsoleColor.DarkGray;
     }
 
     public static bool IsBulkSelectableRecommendedItem(RiskLevel riskLevel, CleanupDecision decision, bool processGuardBlocked)

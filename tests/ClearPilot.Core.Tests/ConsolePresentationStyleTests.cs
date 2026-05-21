@@ -29,6 +29,9 @@ public sealed class ConsolePresentationStyleTests
     public void DecisionLabelsAreLocalizedForEnglish()
     {
         Assert.Equal("Decision", ConsolePresentationStyle.GetDecisionLabel(Language.English));
+        Assert.Equal("Path", ConsolePresentationStyle.GetPathLabel(Language.English));
+        Assert.Equal("Insight", ConsolePresentationStyle.GetInsightLabel(Language.English));
+        Assert.Equal("Boundary", ConsolePresentationStyle.GetBoundaryLabel(Language.English));
         Assert.Equal("Recommended to clean", ConsolePresentationStyle.GetDecisionBadge(Language.English, CleanupDecision.RecommendedToClean));
         Assert.Equal("Not recommended to clean", ConsolePresentationStyle.GetDecisionBadge(Language.English, CleanupDecision.NotRecommendedToClean));
         Assert.Equal("Analysis only, do not clean", ConsolePresentationStyle.GetDecisionBadge(Language.English, CleanupDecision.AnalysisOnlyDoNotClean));
@@ -44,6 +47,9 @@ public sealed class ConsolePresentationStyleTests
     public void DecisionLabelsAreLocalizedForSimplifiedChinese()
     {
         Assert.Equal("结论", ConsolePresentationStyle.GetDecisionLabel(Language.SimplifiedChinese));
+        Assert.Equal("路径", ConsolePresentationStyle.GetPathLabel(Language.SimplifiedChinese));
+        Assert.Equal("说明", ConsolePresentationStyle.GetInsightLabel(Language.SimplifiedChinese));
+        Assert.Equal("边界", ConsolePresentationStyle.GetBoundaryLabel(Language.SimplifiedChinese));
         Assert.Equal("建议清理", ConsolePresentationStyle.GetDecisionBadge(Language.SimplifiedChinese, CleanupDecision.RecommendedToClean));
         Assert.Equal("不建议清理", ConsolePresentationStyle.GetDecisionBadge(Language.SimplifiedChinese, CleanupDecision.NotRecommendedToClean));
         Assert.Equal("仅分析，不清理", ConsolePresentationStyle.GetDecisionBadge(Language.SimplifiedChinese, CleanupDecision.AnalysisOnlyDoNotClean));
@@ -88,5 +94,31 @@ public sealed class ConsolePresentationStyleTests
             RiskLevel.S1LowRisk,
             CleanupDecision.RecommendedToClean,
             processGuardBlocked: true));
+    }
+
+    [Fact]
+    public void ConsolePresentationStyle_ModeColors_AreDistinct()
+    {
+        Assert.Equal(ConsoleColor.DarkGreen, ConsolePresentationStyle.GetModeColor(ConsolePresentationStyle.ModeColorRole.QuickSafeClean));
+        Assert.Equal(ConsoleColor.DarkYellow, ConsolePresentationStyle.GetModeColor(ConsolePresentationStyle.ModeColorRole.RecommendedCleanup));
+        Assert.Equal(ConsoleColor.Cyan, ConsolePresentationStyle.GetModeColor(ConsolePresentationStyle.ModeColorRole.DeepSpaceAnalysis));
+        Assert.Equal(ConsoleColor.Blue, ConsolePresentationStyle.GetModeColor(ConsolePresentationStyle.ModeColorRole.ReportsHistory));
+        Assert.Equal(ConsoleColor.Magenta, ConsolePresentationStyle.GetModeColor(ConsolePresentationStyle.ModeColorRole.Settings));
+        Assert.Equal(ConsoleColor.Yellow, ConsolePresentationStyle.GetModeColor(ConsolePresentationStyle.ModeColorRole.SafetyBoundary));
+        Assert.Equal(ConsoleColor.Red, ConsolePresentationStyle.GetModeColor(ConsolePresentationStyle.ModeColorRole.Blocked));
+        Assert.Equal(ConsoleColor.DarkGray, ConsolePresentationStyle.GetModeColor(ConsolePresentationStyle.ModeColorRole.MutedDetail));
+    }
+
+    [Fact]
+    public void ConsolePresentationStyle_DeepSpace_DoesNotUseGreenForSizeOrPrimaryMode()
+    {
+        Assert.Equal(ConsoleColor.Cyan, ConsolePresentationStyle.GetDeepSpacePrimaryColor());
+        Assert.Equal(ConsoleColor.Cyan, ConsolePresentationStyle.GetDeepSpaceSizeColor());
+        Assert.Equal(ConsoleColor.DarkMagenta, ConsolePresentationStyle.GetDeepSpaceCardColor());
+
+        Assert.NotEqual(ConsoleColor.Green, ConsolePresentationStyle.GetDeepSpacePrimaryColor());
+        Assert.NotEqual(ConsoleColor.DarkGreen, ConsolePresentationStyle.GetDeepSpacePrimaryColor());
+        Assert.NotEqual(ConsoleColor.Green, ConsolePresentationStyle.GetDeepSpaceSizeColor());
+        Assert.NotEqual(ConsoleColor.DarkGreen, ConsolePresentationStyle.GetDeepSpaceSizeColor());
     }
 }

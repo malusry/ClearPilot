@@ -28,11 +28,11 @@ static void RunMainMenu(AppSettings settings, SettingsStore settingsStore)
 
         StartMainMenuPage();
         Console.WriteLine();
-        WriteCommandOption("1", text.Get(StringKey.MainMenuQuickSafeClean), text.Get(StringKey.MainMenuQuickSafeCleanDescription), Theme.Success);
-        WriteCommandOption("2", text.Get(StringKey.MainMenuScanRecommendedItems), text.Get(StringKey.MainMenuScanRecommendedItemsDescription), Theme.Warning);
-        WriteCommandOption("3", text.Get(StringKey.MainMenuDeepSpaceAnalysis), text.Get(StringKey.MainMenuDeepSpaceAnalysisDescription), Theme.Accent);
-        WriteCommandOption("4", text.Get(StringKey.MainMenuCleanupHistory), text.Get(StringKey.MainMenuCleanupHistoryDescription), Theme.History);
-        WriteCommandOption("5", text.Get(StringKey.MainMenuSettings), text.Get(StringKey.MainMenuSettingsDescription), Theme.Settings);
+        WriteCommandOption("1", text.Get(StringKey.MainMenuQuickSafeClean), text.Get(StringKey.MainMenuQuickSafeCleanDescription), ConsolePresentationStyle.GetModeColor(ConsolePresentationStyle.ModeColorRole.QuickSafeClean));
+        WriteCommandOption("2", text.Get(StringKey.MainMenuScanRecommendedItems), text.Get(StringKey.MainMenuScanRecommendedItemsDescription), ConsolePresentationStyle.GetModeColor(ConsolePresentationStyle.ModeColorRole.RecommendedCleanup));
+        WriteCommandOption("3", text.Get(StringKey.MainMenuDeepSpaceAnalysis), text.Get(StringKey.MainMenuDeepSpaceAnalysisDescription), ConsolePresentationStyle.GetModeColor(ConsolePresentationStyle.ModeColorRole.DeepSpaceAnalysis));
+        WriteCommandOption("4", text.Get(StringKey.MainMenuCleanupHistory), text.Get(StringKey.MainMenuCleanupHistoryDescription), ConsolePresentationStyle.GetModeColor(ConsolePresentationStyle.ModeColorRole.ReportsHistory));
+        WriteCommandOption("5", text.Get(StringKey.MainMenuSettings), text.Get(StringKey.MainMenuSettingsDescription), ConsolePresentationStyle.GetModeColor(ConsolePresentationStyle.ModeColorRole.Settings));
         WriteCommandOption("0", text.Get(StringKey.MenuExit), text.Get(StringKey.MainMenuExitDescription), Theme.Subtle);
         Console.WriteLine();
         WritePrompt(text.Get(StringKey.PromptChooseOption));
@@ -110,7 +110,7 @@ static void RunDeepSpaceAnalysis(AppSettings settings)
 {
     var text = MessageCatalog.For(settings.Language);
     StartPage(text.Get(StringKey.DeepAnalysisStarted));
-    WriteLineColor(GetDeepSpaceNoDeleteNoticeV45(text), Theme.Warning);
+    WriteLineColor(GetDeepSpaceNoDeleteNoticeV45(text), ConsolePresentationStyle.GetModeColor(ConsolePresentationStyle.ModeColorRole.SafetyBoundary));
     Console.WriteLine();
 
     var analyzer = new DeepSpaceAnalyzer(ProtectedPathPolicy.CreateDefault());
@@ -142,9 +142,9 @@ static void RunDeepSpaceAnalysis(AppSettings settings)
         var items = ApplyDeepSpaceView(allItems, currentFilter, currentSort).ToArray();
         RenderDeepAnalysisView(text, result.Summary, allItems, items, currentFilter, currentSort);
 
-        WriteMenuOption("F", text.Get(StringKey.DeepAnalysisFilterCommand), Theme.Accent);
-        WriteMenuOption("S", text.Get(StringKey.DeepAnalysisSortCommand), Theme.Accent);
-        WriteMenuOption("R", text.Get(StringKey.DeepAnalysisReportCommand), Theme.Success);
+        WriteMenuOption("F", text.Get(StringKey.DeepAnalysisFilterCommand), ConsolePresentationStyle.GetModeColor(ConsolePresentationStyle.ModeColorRole.DeepSpaceAnalysis));
+        WriteMenuOption("S", text.Get(StringKey.DeepAnalysisSortCommand), ConsolePresentationStyle.GetModeColor(ConsolePresentationStyle.ModeColorRole.DeepSpaceAnalysis));
+        WriteMenuOption("R", text.Get(StringKey.DeepAnalysisReportCommand), ConsolePresentationStyle.GetModeColor(ConsolePresentationStyle.ModeColorRole.ReportsHistory));
         WriteMenuOption("0", text.Get(StringKey.DeepAnalysisReturn), Theme.Subtle);
         WritePrompt(text.Get(StringKey.DeepAnalysisOpenPrompt));
         var selection = Console.ReadLine();
@@ -800,7 +800,13 @@ static void WriteBadgeNotice(string badge, ConsoleColor badgeColor, string text)
     WriteLineColor(text, Theme.Muted);
 }
 
-static void WriteResultCard(int number, string title, string meta, IReadOnlyList<CardDetailLine> details, ConsoleColor accentColor)
+static void WriteResultCard(
+    int number,
+    string title,
+    string meta,
+    IReadOnlyList<CardDetailLine> details,
+    ConsoleColor accentColor,
+    ConsoleColor? metaColor = null)
 {
     var detailWidth = GetCardDetailWidth();
     var metaWidth = string.IsNullOrWhiteSpace(meta)
@@ -813,12 +819,13 @@ static void WriteResultCard(int number, string title, string meta, IReadOnlyList
 
     var titleWidth = Math.Max(12, detailWidth - metaWidth);
 
+    var effectiveMetaColor = metaColor ?? accentColor;
     WriteColor($"  {number,2}", accentColor);
     WriteColor(" │ ", Theme.Subtle);
     WriteColor(FitCell(title, titleWidth), Theme.Text);
     if (!string.IsNullOrWhiteSpace(meta))
     {
-        WriteColor(FitCell(meta, metaWidth, alignRight: true), accentColor);
+        WriteColor(FitCell(meta, metaWidth, alignRight: true), effectiveMetaColor);
     }
     Console.WriteLine();
 
@@ -1158,52 +1165,6 @@ static string GetAppRunningSkipReason(MessageCatalog text)
         : "Skipped because the app is running.";
 }
 
-static string GetDeepSpaceDecisionReasonForDisplayV45(MessageCatalog text, CleanupDecisionResult decision)
-{
-    if (text.Language != Language.SimplifiedChinese)
-    {
-        return decision.DecisionReason;
-    }
-
-    return decision.Decision switch
-    {
-        CleanupDecision.AnalysisOnlyDoNotClean => "这是复核项，仅分析不清理。",
-        CleanupDecision.NotRecommendedToClean => "不建议直接清理，请先评估影响。",
-        CleanupDecision.Blocked => "该项目已被阻止。",
-        CleanupDecision.RecommendedToClean => "建议清理。",
-        _ => decision.DecisionReason
-    };
-}
-
-static string GetDeepSpaceImpactForDisplayV45(MessageCatalog text, DeepSpaceItem item, CleanupDecisionResult decision, TargetAdvice advice)
-{
-    if (text.Language != Language.SimplifiedChinese)
-    {
-        return advice.PossibleImpact;
-    }
-
-    var localizedImpact = DeepSpaceAdviceFormatter.FormatPossibleImpact(text.Language, item, advice.PossibleImpact);
-
-    return decision.Decision switch
-    { CleanupDecision.Blocked => "受保护路径不可删除。", _ => localizedImpact };
-}
-
-static string GetDeepSpaceSafetyNoteForDisplayV45(MessageCatalog text, DeepSpaceItem item, CleanupDecisionResult decision, TargetAdvice advice)
-{
-    if (text.Language != Language.SimplifiedChinese)
-    {
-        return advice.SafetyNote;
-    }
-
-    var localizedSafety = DeepSpaceAdviceFormatter.FormatSafetyNote(text.Language, item, advice.SafetyNote);
-
-    return decision.Decision switch
-    {
-        CleanupDecision.Blocked => "该项目已阻止，ClearPilot 不会执行删除。",
-        _ => localizedSafety
-    };
-}
-
 static string FormatCleanupDecisionBadgeV46(MessageCatalog text, CleanupDecision decision)
 {
     return ConsolePresentationStyle.GetDecisionBadge(text.Language, decision);
@@ -1224,6 +1185,21 @@ static string GetRiskLabelV46(MessageCatalog text)
     return ConsolePresentationStyle.GetRiskLabel(text.Language);
 }
 
+static string GetPathLabelV46(MessageCatalog text)
+{
+    return ConsolePresentationStyle.GetPathLabel(text.Language);
+}
+
+static string GetInsightLabelV46(MessageCatalog text)
+{
+    return ConsolePresentationStyle.GetInsightLabel(text.Language);
+}
+
+static string GetBoundaryLabelV46(MessageCatalog text)
+{
+    return ConsolePresentationStyle.GetBoundaryLabel(text.Language);
+}
+
 static string GetReasonLabelV46(MessageCatalog text)
 {
     return ConsolePresentationStyle.GetReasonLabel(text.Language);
@@ -1237,6 +1213,140 @@ static string GetImpactLabelV46(MessageCatalog text)
 static string GetExpectedReclaimLabelV46(MessageCatalog text)
 {
     return ConsolePresentationStyle.GetExpectedReclaimLabel(text.Language);
+}
+
+static string GetDeepSpaceInsightForDisplayV46(MessageCatalog text, DeepSpaceItem item)
+{
+    if (text.Language == Language.SimplifiedChinese)
+    {
+        if (IsLikelyDownloadsPath(item.Path))
+        {
+            return "Downloads 常包含个人文件、安装包、压缩包和工作导出文件。";
+        }
+
+        if (IsLikelyZoomPath(item.Path, item.TargetId))
+        {
+            return "Zoom 应用数据可能包含日志、缓存、会议诊断、设置、数据库和应用状态。";
+        }
+
+        if (item.Type == DeepSpaceItemType.ProjectDependencyFolder)
+        {
+            return "项目依赖或构建输出目录；通常可重建，但可能影响当前活跃工作区。";
+        }
+
+        if (item.Type == DeepSpaceItemType.SystemManagedWindowsArea)
+        {
+            return "Windows 管理维护区域；直接改动可能影响更新或诊断状态。";
+        }
+
+        if (item.RiskLevel == RiskLevel.Blocked)
+        {
+            return "受保护或包含身份相关数据的区域。";
+        }
+    }
+    else
+    {
+        if (IsLikelyDownloadsPath(item.Path))
+        {
+            return "Downloads often contains personal files, installers, archives, and work exports.";
+        }
+
+        if (IsLikelyZoomPath(item.Path, item.TargetId))
+        {
+            return "Zoom app data may include logs, cache, meeting diagnostics, settings, databases, and app state.";
+        }
+
+        if (item.Type == DeepSpaceItemType.ProjectDependencyFolder)
+        {
+            return "Project dependency or build-output folder; it is often rebuildable but can affect an active workspace.";
+        }
+
+        if (item.Type == DeepSpaceItemType.SystemManagedWindowsArea)
+        {
+            return "Windows-managed maintenance area; direct changes can disrupt update or diagnostic state.";
+        }
+
+        if (item.RiskLevel == RiskLevel.Blocked)
+        {
+            return "Protected or identity-bearing area.";
+        }
+    }
+
+    return FormatDeepSpaceExplanation(text, item);
+}
+
+static string GetDeepSpaceBoundaryForDisplayV46(MessageCatalog text, DeepSpaceItem item, CleanupDecisionResult decision, TargetAdvice advice)
+{
+    if (decision.Decision == CleanupDecision.Blocked)
+    {
+        return text.Language == Language.SimplifiedChinese
+            ? "受策略阻止。ClearPilot 在任何模式下都不会清理该目标。"
+            : "Blocked by policy. ClearPilot will not clean this target in any mode.";
+    }
+
+    if (text.Language == Language.SimplifiedChinese)
+    {
+        if (IsLikelyDownloadsPath(item.Path))
+        {
+            return "只读结果。ClearPilot 仅报告大小，不会从 Downloads 执行删除。";
+        }
+
+        if (IsLikelyZoomPath(item.Path, item.TargetId))
+        {
+            return "仅证据可见（v0.4）。ClearPilot 不会清理 Zoom 数据。";
+        }
+
+        if (item.Type == DeepSpaceItemType.ProjectDependencyFolder)
+        {
+            return "仅复核。若需处理，请在 ClearPilot 之外使用项目所属工具执行。";
+        }
+
+        if (item.Type == DeepSpaceItemType.SystemManagedWindowsArea)
+        {
+            return "ClearPilot 不会清理该区域。请使用 Windows 设置、存储感知或磁盘清理。";
+        }
+
+        return "只读结果。ClearPilot 不会删除它；打开位置只会在文件资源管理器中显示。";
+    }
+
+    if (IsLikelyDownloadsPath(item.Path))
+    {
+        return "Read-only insight. ClearPilot reports size only and does not delete from Downloads.";
+    }
+
+    if (IsLikelyZoomPath(item.Path, item.TargetId))
+    {
+        return "Evidence only in v0.4. ClearPilot does not clean Zoom data.";
+    }
+
+    if (item.Type == DeepSpaceItemType.ProjectDependencyFolder)
+    {
+        return "Review-only. Use the owning project tool outside ClearPilot if you decide to change it.";
+    }
+
+    if (item.Type == DeepSpaceItemType.SystemManagedWindowsArea)
+    {
+        return "ClearPilot will not clean it. Use Windows Settings, Storage Sense, or Disk Cleanup.";
+    }
+
+    return "Read-only finding. ClearPilot will not delete it; open location only shows it in File Explorer.";
+}
+
+static bool IsLikelyDownloadsPath(string path)
+{
+    return path.Contains($"{Path.DirectorySeparatorChar}Downloads{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
+        || path.Contains($"{Path.AltDirectorySeparatorChar}Downloads{Path.AltDirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith($"{Path.DirectorySeparatorChar}Downloads", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith($"{Path.AltDirectorySeparatorChar}Downloads", StringComparison.OrdinalIgnoreCase);
+}
+
+static bool IsLikelyZoomPath(string path, string targetId)
+{
+    return targetId.Contains("zoom", StringComparison.OrdinalIgnoreCase)
+        || path.Contains($"{Path.DirectorySeparatorChar}Zoom{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith($"{Path.DirectorySeparatorChar}Zoom", StringComparison.OrdinalIgnoreCase)
+        || path.Contains($"{Path.AltDirectorySeparatorChar}Zoom{Path.AltDirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
+        || path.EndsWith($"{Path.AltDirectorySeparatorChar}Zoom", StringComparison.OrdinalIgnoreCase);
 }
 
 static string GetSafetyNoteLabelV46(MessageCatalog text)
@@ -2008,7 +2118,6 @@ static void WriteDeepSpaceItems(MessageCatalog text, IReadOnlyList<DeepSpaceItem
         {
             var advice = RecommendationAdvisor.ForDeepSpaceItem(item);
             var decision = CleanupDecisionAdvisor.ForDeepSpaceItem(item, advice);
-            var pathLabel = text.Language == Language.SimplifiedChinese ? "路径" : "Path";
             var displayTitle = Path.GetFileName(item.Path);
             if (string.IsNullOrWhiteSpace(displayTitle))
             {
@@ -2030,32 +2139,26 @@ static void WriteDeepSpaceItems(MessageCatalog text, IReadOnlyList<DeepSpaceItem
                         $"{GetRiskLabelV46(text)}: ",
                         FormatRiskBadge(item.RiskLevel),
                         GetRiskColor(item.RiskLevel),
-                        $"   {text.Get(StringKey.DeepAnalysisType)}: {FormatDeepSpaceType(text, item.Type)}",
+                        string.Empty,
                         prefixColor: Theme.Heading),
                     CardDetailLine.WithHighlight(
-                        $"{pathLabel}: ",
+                        $"{GetPathLabelV46(text)}: ",
                         item.Path,
-                        Theme.Subtle,
+                        ConsolePresentationStyle.GetDeepSpacePathColor(),
                         prefixColor: Theme.Heading),
                     CardDetailLine.WithHighlight(
-                        $"{GetReasonLabelV46(text)}: ",
-                        GetDeepSpaceDecisionReasonForDisplayV45(text, decision),
+                        $"{GetInsightLabelV46(text)}: ",
+                        GetDeepSpaceInsightForDisplayV46(text, item),
                         Theme.Text,
                         prefixColor: Theme.Heading),
-                    $"{text.Get(StringKey.DeepAnalysisLastModified)}: {FormatDate(item.LastWriteTime)}",
-                    $"{text.Get(StringKey.DeepAnalysisExplanation)}: {FormatDeepSpaceExplanation(text, item)}",
                     CardDetailLine.WithHighlight(
-                        $"{GetImpactLabelV46(text)}: ",
-                        GetDeepSpaceImpactForDisplayV45(text, item, decision, advice),
+                        $"{GetBoundaryLabelV46(text)}: ",
+                        GetDeepSpaceBoundaryForDisplayV46(text, item, decision, advice),
                         Theme.Muted,
                         prefixColor: Theme.Heading),
-                    CardDetailLine.WithHighlight(
-                        $"{GetSafetyNoteLabelV46(text)}: ",
-                        GetDeepSpaceSafetyNoteForDisplayV45(text, item, decision, advice),
-                        Theme.Muted,
-                        prefixColor: Theme.Heading)
                 ],
-                Theme.SpaceAccent);
+                ConsolePresentationStyle.GetDeepSpaceCardColor(),
+                metaColor: ConsolePresentationStyle.GetDeepSpaceSizeColor());
             displayNumber++;
             Console.WriteLine();
         }

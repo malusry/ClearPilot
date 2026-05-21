@@ -9,61 +9,84 @@ namespace ClearPilot.Core.Tests;
 public sealed class DeepSpaceCliRenderingTests
 {
     [Fact]
-    public void DeepSpaceCli_English_DoesNotShowSuggestedOrRecommendedAction()
+    public void DeepSpaceCli_UsesSimplifiedInsightBoundaryCard()
     {
         using var workspace = CliTestWorkspace.Create();
-        workspace.CreateFile(Path.Combine("Downloads", "large.bin"), 4096);
+        workspace.CreateFile(Path.Combine("Downloads", "archive.iso"), 4 * 1024 * 1024);
 
         var output = workspace.RunDeepSpaceCli(Language.English);
 
-        Assert.DoesNotContain("Recommended action", output, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("Suggested action", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Decision:", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Risk:", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Path:", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Insight:", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Boundary:", output, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void DeepSpaceCli_English_ShowsReadOnlyNoDeleteFraming()
+    public void DeepSpaceCli_ZhCn_UsesSimplifiedInsightBoundaryCard()
     {
         using var workspace = CliTestWorkspace.Create();
-        workspace.CreateFile(Path.Combine("Downloads", "large.bin"), 4096);
-
-        var output = workspace.RunDeepSpaceCli(Language.English);
-
-        Assert.Contains("Analysis only", output, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("does not delete files", output, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Downloads is scanned only for storage understanding", output, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void DeepSpaceCli_ZhCn_DoesNotShowSuggestedOrRecommendedAction()
-    {
-        using var workspace = CliTestWorkspace.Create();
-        workspace.CreateFile(Path.Combine("Downloads", "large.bin"), 4096);
+        workspace.CreateFile(Path.Combine("Downloads", "archive.iso"), 4 * 1024 * 1024);
 
         var output = workspace.RunDeepSpaceCli(Language.SimplifiedChinese);
 
-        Assert.DoesNotContain("Recommended action", output, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("Suggested action", output, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("建议操作", output, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void DeepSpaceCli_ZhCn_ShowsReadablePathAndReadOnlyFraming()
-    {
-        using var workspace = CliTestWorkspace.Create();
-        workspace.CreateFile(Path.Combine("Downloads", "large.bin"), 4096);
-
-        var output = workspace.RunDeepSpaceCli(Language.SimplifiedChinese);
-
+        Assert.Contains("结论", output, StringComparison.Ordinal);
+        Assert.Contains("风险", output, StringComparison.Ordinal);
         Assert.Contains("路径", output, StringComparison.Ordinal);
-        Assert.Contains("仅分析", output, StringComparison.Ordinal);
-        Assert.Contains("不会执行删除", output, StringComparison.Ordinal);
+        Assert.Contains("说明", output, StringComparison.Ordinal);
+        Assert.Contains("边界", output, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void DeepSpaceCli_ZhCn_HasNoMojibake()
+    public void DeepSpaceCli_DoesNotShowActionFields()
     {
         using var workspace = CliTestWorkspace.Create();
-        workspace.CreateFile(Path.Combine("Downloads", "large.bin"), 4096);
+        workspace.CreateFile(Path.Combine("Downloads", "archive.iso"), 4 * 1024 * 1024);
+
+        var output = workspace.RunDeepSpaceCli(Language.English);
+        var zhOutput = workspace.RunDeepSpaceCli(Language.SimplifiedChinese);
+
+        Assert.DoesNotContain("Suggested action", output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Recommended action", output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("建议操作", zhOutput, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DeepSpaceCli_DoesNotUseSeparateVerboseFieldsAsPrimary()
+    {
+        using var workspace = CliTestWorkspace.Create();
+        workspace.CreateFile(Path.Combine("Downloads", "archive.iso"), 4 * 1024 * 1024);
+
+        var output = workspace.RunDeepSpaceCli(Language.English);
+        var zhOutput = workspace.RunDeepSpaceCli(Language.SimplifiedChinese);
+
+        Assert.DoesNotContain("Possible impact if cleaned:", output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Safety note:", output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("清理后的可能影响", zhOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain("安全说明", zhOutput, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DeepSpaceCli_ReadOnlyBoundaryStillVisible()
+    {
+        using var workspace = CliTestWorkspace.Create();
+        workspace.CreateFile(Path.Combine("Downloads", "archive.iso"), 4 * 1024 * 1024);
+
+        var output = workspace.RunDeepSpaceCli(Language.English);
+        var zhOutput = workspace.RunDeepSpaceCli(Language.SimplifiedChinese);
+
+        Assert.Contains("Read-only", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("will not delete", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("只读", zhOutput, StringComparison.Ordinal);
+        Assert.Contains("不会删除", zhOutput, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DeepSpaceCli_ZhCn_NoMojibake()
+    {
+        using var workspace = CliTestWorkspace.Create();
+        workspace.CreateFile(Path.Combine("Downloads", "archive.iso"), 4 * 1024 * 1024);
 
         var output = workspace.RunDeepSpaceCli(Language.SimplifiedChinese);
 
