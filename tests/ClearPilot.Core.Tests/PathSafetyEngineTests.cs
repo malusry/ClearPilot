@@ -291,6 +291,24 @@ public sealed class PathSafetyEngineTests
         Assert.False(engine.ValidateRoot(installer, whitelist).IsSafe);
     }
 
+    [Fact]
+    public void CleanupExecutor_RejectsDownloadsCandidate_IfRepresentable()
+    {
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var downloads = string.IsNullOrWhiteSpace(userProfile) ? string.Empty : Path.Combine(userProfile, "Downloads");
+        if (string.IsNullOrWhiteSpace(downloads))
+        {
+            return;
+        }
+
+        var engine = new PathSafetyEngine(ProtectedPathPolicy.CreateDefault());
+        var whitelist = new KnownSafeCacheRootWhitelist([downloads]);
+        var decision = engine.ValidateRoot(downloads, whitelist);
+
+        Assert.False(decision.IsSafe);
+        Assert.Equal("ProtectedRoot", decision.ResultCode);
+    }
+
     private static PathSafetyEngine CreateEngine(IReadOnlyList<string> blockedRoots)
     {
         return new PathSafetyEngine(new ProtectedPathPolicy(blockedRoots));

@@ -64,4 +64,18 @@ public sealed class ProtectedPathPolicyTests
 
         Assert.All(paths, path => Assert.True(policy.IsBlocked(path), path));
     }
+
+    [Fact]
+    public void ProtectedPathPolicy_CleanupStillBlocksDownloads()
+    {
+        var policy = ProtectedPathPolicy.CreateDefault();
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var downloads = string.IsNullOrWhiteSpace(userProfile) ? string.Empty : Path.Combine(userProfile, "Downloads");
+        if (string.IsNullOrWhiteSpace(downloads))
+        {
+            return;
+        }
+
+        Assert.True(policy.IsBlocked(downloads));
+    }
 }

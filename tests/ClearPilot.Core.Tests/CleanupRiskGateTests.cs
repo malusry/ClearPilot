@@ -210,6 +210,48 @@ public sealed class CleanupRiskGateTests
         Assert.Equal(2, result.SkippedCount);
     }
 
+    [Fact]
+    public void QuickSafeClean_DoesNotIncludeDownloads()
+    {
+        var rules = RuleCatalog.CreateDefault(new EnvironmentPaths(
+            @"C:\Users\tester\AppData\Local\Temp",
+            @"C:\Users\tester\AppData\Local",
+            @"C:\Users\tester",
+            @"C:\Windows",
+            @"C:\ProgramData",
+            @"C:\Program Files",
+            @"C:\Program Files (x86)"));
+
+        var quickRules = rules.Where(rule => rule.RiskLevel == RiskLevel.S0VeryLowRisk).ToArray();
+
+        Assert.NotEmpty(quickRules);
+        Assert.DoesNotContain(
+            quickRules.SelectMany(rule => rule.RootPaths),
+            root => root.Contains(Path.Combine("Users", "tester", "Downloads"), StringComparison.OrdinalIgnoreCase)
+                || root.EndsWith("Downloads", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void RecommendedCleanup_DoesNotIncludeDownloads()
+    {
+        var rules = RuleCatalog.CreateDefault(new EnvironmentPaths(
+            @"C:\Users\tester\AppData\Local\Temp",
+            @"C:\Users\tester\AppData\Local",
+            @"C:\Users\tester",
+            @"C:\Windows",
+            @"C:\ProgramData",
+            @"C:\Program Files",
+            @"C:\Program Files (x86)"));
+
+        var recommendedRules = rules.Where(rule => rule.RiskLevel == RiskLevel.S1LowRisk).ToArray();
+
+        Assert.NotEmpty(recommendedRules);
+        Assert.DoesNotContain(
+            recommendedRules.SelectMany(rule => rule.RootPaths),
+            root => root.Contains(Path.Combine("Users", "tester", "Downloads"), StringComparison.OrdinalIgnoreCase)
+                || root.EndsWith("Downloads", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static QuickSafeCleaner CreateQuickCleaner(string logPath)
     {
         var protectedPathPolicy = new ProtectedPathPolicy([]);

@@ -381,6 +381,114 @@ public sealed class DeepSpaceAnalyzerTests
     }
 
     [Fact]
+    public void DeepSpace_DefaultScope_IncludesDownloadsReadOnly()
+    {
+        var downloads = GetDownloadsPath();
+        if (string.IsNullOrWhiteSpace(downloads) || !Directory.Exists(downloads))
+        {
+            return;
+        }
+
+        var marker = $"ClearPilot.DeepSpace.{Guid.NewGuid():N}";
+        var probeDirectory = Path.Combine(downloads, marker);
+        var probeFile = Path.Combine(probeDirectory, "large.bin");
+        Directory.CreateDirectory(probeDirectory);
+        try
+        {
+            using (var stream = File.Create(probeFile))
+            {
+                stream.SetLength(4096);
+            }
+
+            File.SetLastWriteTimeUtc(probeFile, DateTime.UtcNow.AddDays(-2));
+
+            var analyzer = new DeepSpaceAnalyzer(ProtectedPathPolicy.CreateDefault());
+            var options = CreateDownloadsOnlyOptions(downloads);
+            var result = analyzer.AnalyzeWithSummary(options, DateTimeOffset.UtcNow);
+
+            Assert.Contains(options.RootPaths.Select(NormalizePath), root => string.Equals(root, NormalizePath(downloads), StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(result.Items, item => item.Path.Equals(probeFile, StringComparison.OrdinalIgnoreCase));
+            Assert.True(File.Exists(probeFile));
+        }
+        finally
+        {
+            TryDeleteDirectory(probeDirectory);
+        }
+    }
+
+    [Fact]
+    public void DeepSpace_DownloadsFinding_IsAnalysisOnlyS2()
+    {
+        var downloads = GetDownloadsPath();
+        if (string.IsNullOrWhiteSpace(downloads) || !Directory.Exists(downloads))
+        {
+            return;
+        }
+
+        var marker = $"ClearPilot.DeepSpace.{Guid.NewGuid():N}";
+        var probeDirectory = Path.Combine(downloads, marker);
+        var probeFile = Path.Combine(probeDirectory, "large.bin");
+        Directory.CreateDirectory(probeDirectory);
+        try
+        {
+            using (var stream = File.Create(probeFile))
+            {
+                stream.SetLength(4096);
+            }
+
+            File.SetLastWriteTimeUtc(probeFile, DateTime.UtcNow.AddDays(-2));
+
+            var analyzer = new DeepSpaceAnalyzer(ProtectedPathPolicy.CreateDefault());
+            var result = analyzer.Analyze(CreateDownloadsOnlyOptions(downloads), DateTimeOffset.UtcNow);
+            var item = Assert.Single(result, candidate => candidate.Path.Equals(probeFile, StringComparison.OrdinalIgnoreCase));
+
+            Assert.Equal(RiskLevel.S2ReviewRequired, item.RiskLevel);
+            Assert.True(File.Exists(probeFile));
+        }
+        finally
+        {
+            TryDeleteDirectory(probeDirectory);
+        }
+    }
+
+    [Fact]
+    public void DeepSpace_DownloadsFinding_IsNotCleanupEligible()
+    {
+        var downloads = GetDownloadsPath();
+        if (string.IsNullOrWhiteSpace(downloads) || !Directory.Exists(downloads))
+        {
+            return;
+        }
+
+        var marker = $"ClearPilot.DeepSpace.{Guid.NewGuid():N}";
+        var probeDirectory = Path.Combine(downloads, marker);
+        var probeFile = Path.Combine(probeDirectory, "large.bin");
+        Directory.CreateDirectory(probeDirectory);
+        try
+        {
+            using (var stream = File.Create(probeFile))
+            {
+                stream.SetLength(4096);
+            }
+
+            File.SetLastWriteTimeUtc(probeFile, DateTime.UtcNow.AddDays(-2));
+
+            var analyzer = new DeepSpaceAnalyzer(ProtectedPathPolicy.CreateDefault());
+            var result = analyzer.Analyze(CreateDownloadsOnlyOptions(downloads), DateTimeOffset.UtcNow);
+            var item = Assert.Single(result, candidate => candidate.Path.Equals(probeFile, StringComparison.OrdinalIgnoreCase));
+            var advice = RecommendationAdvisor.ForDeepSpaceItem(item);
+            var decision = CleanupDecisionAdvisor.ForDeepSpaceItem(item, advice);
+
+            Assert.Equal(CleanupDecision.AnalysisOnlyDoNotClean, decision.Decision);
+            Assert.Equal(RiskLevel.S2ReviewRequired, item.RiskLevel);
+        }
+        finally
+        {
+            TryDeleteDirectory(probeDirectory);
+        }
+    }
+
+    [Fact]
     public void DeepSpace_DoesNotDeleteFiles()
     {
         using var workspace = TestWorkspace.Create();
@@ -407,6 +515,51 @@ public sealed class DeepSpaceAnalyzerTests
         }
     }
 
+    [Fact]
+    public void DeepSpace_Downloads_ReparsePointNotTraversedAsCleanup()
+    {
+        var downloads = GetDownloadsPath();
+        if (string.IsNullOrWhiteSpace(downloads) || !Directory.Exists(downloads))
+        {
+            return;
+        }
+
+        var marker = $"ClearPilot.DeepSpace.{Guid.NewGuid():N}";
+        var probeDirectory = Path.Combine(downloads, marker);
+        var linkPath = Path.Combine(probeDirectory, "linked");
+        var outsideRoot = Path.Combine(Path.GetTempPath(), "ClearPilot.DeepSpace.Target", Guid.NewGuid().ToString("N"));
+        var outsideFile = Path.Combine(outsideRoot, "outside.bin");
+        Directory.CreateDirectory(probeDirectory);
+        Directory.CreateDirectory(outsideRoot);
+        File.WriteAllText(outsideFile, "outside");
+        try
+        {
+            try
+            {
+                Directory.CreateSymbolicLink(linkPath, outsideRoot);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return;
+            }
+            catch (IOException)
+            {
+                return;
+            }
+
+            var analyzer = new DeepSpaceAnalyzer(ProtectedPathPolicy.CreateDefault());
+            var result = analyzer.Analyze(CreateDownloadsOnlyOptions(downloads), DateTimeOffset.UtcNow);
+
+            Assert.DoesNotContain(result, item => item.Path.StartsWith(linkPath, StringComparison.OrdinalIgnoreCase));
+            Assert.True(File.Exists(outsideFile));
+        }
+        finally
+        {
+            TryDeleteDirectory(probeDirectory);
+            TryDeleteDirectory(outsideRoot);
+        }
+    }
+
     private static DeepSpaceAnalysisOptions CreateOptions(string root)
     {
         return new DeepSpaceAnalysisOptions
@@ -420,9 +573,48 @@ public sealed class DeepSpaceAnalyzerTests
         };
     }
 
+    private static DeepSpaceAnalysisOptions CreateDownloadsOnlyOptions(string downloadsRoot)
+    {
+        return new DeepSpaceAnalysisOptions
+        {
+            RootPaths = [downloadsRoot],
+            LargeFileThresholdBytes = 1024,
+            LargeFolderThresholdBytes = 2048,
+            FileTypeSummaryThresholdBytes = 1024,
+            OldArchiveAge = TimeSpan.FromDays(1),
+            MaxDepth = 3,
+            MaxResults = 20
+        };
+    }
+
     private static string NormalizePath(string path)
     {
         return Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    }
+
+    private static string GetDownloadsPath()
+    {
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        return string.IsNullOrWhiteSpace(userProfile)
+            ? string.Empty
+            : Path.Combine(userProfile, "Downloads");
+    }
+
+    private static void TryDeleteDirectory(string path)
+    {
+        try
+        {
+            if (Directory.Exists(path))
+            {
+                Directory.Delete(path, recursive: true);
+            }
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
     }
 
     private sealed class TestWorkspace : IDisposable

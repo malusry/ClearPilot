@@ -432,4 +432,27 @@ public sealed class RuleCatalogTests
             root.EndsWith(Path.Combine("steamapps", "shadercache"), StringComparison.OrdinalIgnoreCase)
             || root.EndsWith("depotcache", StringComparison.OrdinalIgnoreCase)));
     }
+
+    [Fact]
+    public void RuleCatalog_DoesNotContainDownloadsS0OrS1Rule()
+    {
+        var paths = new EnvironmentPaths(
+            @"C:\Users\tester\AppData\Local\Temp",
+            @"C:\Users\tester\AppData\Local",
+            @"C:\Users\tester",
+            @"C:\Windows",
+            @"C:\ProgramData",
+            @"C:\Program Files",
+            @"C:\Program Files (x86)");
+
+        var rules = RuleCatalog.CreateDefault(paths);
+
+        Assert.DoesNotContain(
+            rules,
+            rule =>
+                (rule.RiskLevel is RiskLevel.S0VeryLowRisk or RiskLevel.S1LowRisk)
+                && rule.RootPaths.Any(root =>
+                    root.Contains(Path.Combine("Users", "tester", "Downloads"), StringComparison.OrdinalIgnoreCase)
+                    || root.EndsWith("Downloads", StringComparison.OrdinalIgnoreCase)));
+    }
 }
