@@ -33,6 +33,15 @@ public static class RecommendationAdvisor
                 "Clean only if you do not need crash diagnostics.",
                 "ClearPilot skips active, locked, or inaccessible dump files."),
 
+            "cp.s1.windows-error-reports" or
+            "cp.s1.windows-error-report-queue" => new TargetAdvice(
+                RecommendationLevel.Optional,
+                "advice.windows-error-reports",
+                "Old Windows Error Reporting diagnostics can be cleaned in user scope after they are no longer needed.",
+                "Historical troubleshooting diagnostics may no longer be available.",
+                "Clean only after review and explicit confirmation.",
+                "Only old user-scope diagnostics are targeted; active/pending reports and system-managed servicing data are not cleaned."),
+
             "cp.s1.windows-inet-cache" => new TargetAdvice(
                 RecommendationLevel.Optional,
                 "advice.windows-inet-cache",

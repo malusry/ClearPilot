@@ -288,6 +288,227 @@ public sealed class CleanupScannerTests
         Assert.DoesNotContain(candidates, candidate => candidate.RuleId == "cp.s1.electron-app-crash-completed");
     }
 
+    [Fact]
+    public void WindowsDiagnostics_ReportQueue_ExcludesActiveLikeRootFilenames()
+    {
+        using var workspace = TestWorkspace.Create();
+        var localAppData = workspace.CreateDirectory("LocalAppData");
+        var userProfile = workspace.CreateDirectory("User");
+        var queueRoot = workspace.CreateDirectory(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue"));
+        var eligibleOld = workspace.CreateOldFile(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "old.wer"), "1234");
+        var excludedFiles = new[]
+        {
+            workspace.CreateOldFile(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "active.wer"), "a"),
+            workspace.CreateOldFile(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "pending.wer"), "b"),
+            workspace.CreateOldFile(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "state.xml"), "c"),
+            workspace.CreateOldFile(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "session.log"), "d"),
+            workspace.CreateOldFile(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "uploads.tmp"), "e"),
+            workspace.CreateOldFile(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "attachments.txt"), "f")
+        };
+
+        File.SetLastWriteTimeUtc(eligibleOld, DateTime.UtcNow.AddDays(-45));
+        foreach (var file in excludedFiles)
+        {
+            File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddDays(-45));
+        }
+
+        var rules = RuleCatalog.CreateDefault(new EnvironmentPaths(
+            workspace.CreateDirectory("Temp"),
+            localAppData,
+            userProfile));
+        var queueRule = Assert.Single(rules, rule => rule.RuleId == "cp.s1.windows-error-report-queue");
+        Assert.Contains(queueRoot, queueRule.RootPaths, StringComparer.OrdinalIgnoreCase);
+
+        var scanner = new CleanupScanner(new ProtectedPathPolicy([]));
+        var candidates = scanner.Scan([queueRule], DateTimeOffset.UtcNow);
+
+        var candidate = Assert.Single(candidates);
+        Assert.Equal("cp.s1.windows-error-report-queue", candidate.RuleId);
+        Assert.Equal(1, candidate.FileCount);
+        Assert.Equal(new FileInfo(eligibleOld).Length, candidate.EstimatedBytes);
+    }
+
+    [Fact]
+    public void WindowsDiagnostics_ReportQueue_ExcludesActiveLikeFilenamePrefixes()
+    {
+        using var workspace = TestWorkspace.Create();
+        var localAppData = workspace.CreateDirectory("LocalAppData");
+        var userProfile = workspace.CreateDirectory("User");
+        var queueRoot = workspace.CreateDirectory(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue"));
+        var eligibleOld = workspace.CreateOldFile(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "old.wer"), "1234");
+        var excludedFiles = new[]
+        {
+            workspace.CreateOldFile(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "active-123.wer"), "a"),
+            workspace.CreateOldFile(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "pending_abc.wer"), "b"),
+            workspace.CreateOldFile(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "state-xyz.xml"), "c"),
+            workspace.CreateOldFile(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "session-1.log"), "d"),
+            workspace.CreateOldFile(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "uploads-1.tmp"), "e"),
+            workspace.CreateOldFile(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "attachments-1.txt"), "f")
+        };
+
+        File.SetLastWriteTimeUtc(eligibleOld, DateTime.UtcNow.AddDays(-45));
+        foreach (var file in excludedFiles)
+        {
+            File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddDays(-45));
+        }
+
+        var rules = RuleCatalog.CreateDefault(new EnvironmentPaths(
+            workspace.CreateDirectory("Temp"),
+            localAppData,
+            userProfile));
+        var queueRule = Assert.Single(rules, rule => rule.RuleId == "cp.s1.windows-error-report-queue");
+        Assert.Contains(queueRoot, queueRule.RootPaths, StringComparer.OrdinalIgnoreCase);
+
+        var scanner = new CleanupScanner(new ProtectedPathPolicy([]));
+        var candidates = scanner.Scan([queueRule], DateTimeOffset.UtcNow);
+
+        var candidate = Assert.Single(candidates);
+        Assert.Equal(1, candidate.FileCount);
+        Assert.Equal(new FileInfo(eligibleOld).Length, candidate.EstimatedBytes);
+    }
+
+    [Fact]
+    public void WindowsDiagnostics_ReportQueue_StillExcludesActiveSubdirectories()
+    {
+        using var workspace = TestWorkspace.Create();
+        var localAppData = workspace.CreateDirectory("LocalAppData");
+        var userProfile = workspace.CreateDirectory("User");
+        var queueRoot = workspace.CreateDirectory(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue"));
+        _ = workspace.CreateDirectory(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "pending"));
+        _ = workspace.CreateDirectory(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "active"));
+        _ = workspace.CreateDirectory(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "state"));
+        _ = workspace.CreateDirectory(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "session"));
+        _ = workspace.CreateDirectory(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "uploads"));
+        _ = workspace.CreateDirectory(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "attachments"));
+        var eligibleOld = workspace.CreateOldFile(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "old.wer"), "1234");
+        var excludedFiles = new[]
+        {
+            workspace.CreateOldFile(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "pending", "pending.wer"), "a"),
+            workspace.CreateOldFile(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "active", "active.wer"), "b"),
+            workspace.CreateOldFile(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "state", "state.xml"), "c"),
+            workspace.CreateOldFile(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "session", "session.log"), "d"),
+            workspace.CreateOldFile(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "uploads", "uploads.tmp"), "e"),
+            workspace.CreateOldFile(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "attachments", "attachments.txt"), "f")
+        };
+
+        File.SetLastWriteTimeUtc(eligibleOld, DateTime.UtcNow.AddDays(-45));
+        foreach (var file in excludedFiles)
+        {
+            File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddDays(-45));
+        }
+
+        var rules = RuleCatalog.CreateDefault(new EnvironmentPaths(
+            workspace.CreateDirectory("Temp"),
+            localAppData,
+            userProfile));
+        var queueRule = Assert.Single(rules, rule => rule.RuleId == "cp.s1.windows-error-report-queue");
+        Assert.Contains(queueRoot, queueRule.RootPaths, StringComparer.OrdinalIgnoreCase);
+
+        var scanner = new CleanupScanner(new ProtectedPathPolicy([]));
+        var candidates = scanner.Scan([queueRule], DateTimeOffset.UtcNow);
+
+        var candidate = Assert.Single(candidates);
+        Assert.Equal(1, candidate.FileCount);
+        Assert.Equal(new FileInfo(eligibleOld).Length, candidate.EstimatedBytes);
+    }
+
+    [Fact]
+    public void WindowsDiagnostics_ReportQueue_AllowsOldNormalReports()
+    {
+        using var workspace = TestWorkspace.Create();
+        var localAppData = workspace.CreateDirectory("LocalAppData");
+        var userProfile = workspace.CreateDirectory("User");
+        var queueRoot = workspace.CreateDirectory(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue"));
+        var oldWer = workspace.CreateOldFile(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "normal.wer"), "1234");
+        var oldLog = workspace.CreateOldFile(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "ReportQueue", "diag-2025.log"), "5678");
+        File.SetLastWriteTimeUtc(oldWer, DateTime.UtcNow.AddDays(-45));
+        File.SetLastWriteTimeUtc(oldLog, DateTime.UtcNow.AddDays(-45));
+
+        var rules = RuleCatalog.CreateDefault(new EnvironmentPaths(
+            workspace.CreateDirectory("Temp"),
+            localAppData,
+            userProfile));
+        var queueRule = Assert.Single(rules, rule => rule.RuleId == "cp.s1.windows-error-report-queue");
+        Assert.Contains(queueRoot, queueRule.RootPaths, StringComparer.OrdinalIgnoreCase);
+
+        var scanner = new CleanupScanner(new ProtectedPathPolicy([]));
+        var candidates = scanner.Scan([queueRule], DateTimeOffset.UtcNow);
+
+        var candidate = Assert.Single(candidates);
+        Assert.Equal(2, candidate.FileCount);
+        Assert.Equal(new FileInfo(oldWer).Length + new FileInfo(oldLog).Length, candidate.EstimatedBytes);
+    }
+
+    [Fact]
+    public void WindowsDiagnostics_WerTemp_OldOnly()
+    {
+        using var workspace = TestWorkspace.Create();
+        var localAppData = workspace.CreateDirectory("LocalAppData");
+        var userProfile = workspace.CreateDirectory("User");
+        _ = workspace.CreateDirectory(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "Temp"));
+
+        var oldTemp = workspace.CreateFile(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "Temp", "old.log"), "old");
+        var recentTemp = workspace.CreateFile(Path.Combine("LocalAppData", "Microsoft", "Windows", "WER", "Temp", "recent.log"), "new");
+        File.SetLastWriteTimeUtc(oldTemp, DateTime.UtcNow.AddDays(-20));
+        File.SetLastWriteTimeUtc(recentTemp, DateTime.UtcNow.AddDays(-1));
+
+        var rules = RuleCatalog.CreateDefault(new EnvironmentPaths(
+            workspace.CreateDirectory("Temp"),
+            localAppData,
+            userProfile));
+        var werRule = Assert.Single(rules, rule => rule.RuleId == "cp.s1.windows-error-reports");
+
+        var scanner = new CleanupScanner(new ProtectedPathPolicy([]));
+        var candidates = scanner.Scan([werRule], DateTimeOffset.UtcNow);
+
+        var candidate = Assert.Single(candidates);
+        Assert.Equal("cp.s1.windows-error-reports", candidate.RuleId);
+        Assert.Equal(1, candidate.FileCount);
+        Assert.Equal(new FileInfo(oldTemp).Length, candidate.EstimatedBytes);
+    }
+
+    [Fact]
+    public void WindowsDiagnostics_ReparseRecentLockedSkipped()
+    {
+        using var workspace = TestWorkspace.Create();
+        var root = workspace.CreateDirectory("CrashDumps");
+        var recentDump = workspace.CreateFile(Path.Combine("CrashDumps", "recent.dmp"), "1234");
+        File.SetLastWriteTimeUtc(recentDump, DateTime.UtcNow.AddDays(-1));
+
+        var outsideDirectory = workspace.CreateDirectory("outside");
+        _ = workspace.CreateOldFile(Path.Combine("outside", "old.dmp"), "5678");
+        var reparsePath = Path.Combine(root, "linked");
+
+        try
+        {
+            Directory.CreateSymbolicLink(reparsePath, outsideDirectory);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return;
+        }
+        catch (IOException)
+        {
+            return;
+        }
+
+        var rule = new CleanupRule(
+            "cp.s1.user-crash-dumps",
+            "Current user crash dumps",
+            RiskLevel.S1LowRisk,
+            [root],
+            ["*.dmp", "*.mdmp"],
+            [],
+            TimeSpan.FromDays(14),
+            "Old crash dump files from user-mode applications.");
+        var scanner = new CleanupScanner(new ProtectedPathPolicy([]));
+
+        using var lockedHandle = new FileStream(recentDump, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        var candidates = scanner.Scan([rule], DateTimeOffset.UtcNow);
+
+        Assert.Empty(candidates);
+    }
+
     private sealed class TestWorkspace : IDisposable
     {
         private TestWorkspace(string root)

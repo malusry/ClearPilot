@@ -421,6 +421,57 @@ public sealed class CleanupRiskGateTests
         Assert.Equal(1, result.SkippedCount);
     }
 
+    [Fact]
+    public void WindowsDiagnostics_QuickSafeDoesNotIncludeUserDiagnostics()
+    {
+        var rules = RuleCatalog.CreateDefault(new EnvironmentPaths(
+            @"C:\Users\tester\AppData\Local\Temp",
+            @"C:\Users\tester\AppData\Local",
+            @"C:\Users\tester",
+            @"C:\Windows",
+            @"C:\ProgramData",
+            @"C:\Program Files",
+            @"C:\Program Files (x86)"));
+
+        var quickRules = rules.Where(rule => rule.RiskLevel == RiskLevel.S0VeryLowRisk).ToArray();
+        Assert.NotEmpty(quickRules);
+        Assert.DoesNotContain(
+            quickRules.SelectMany(rule => rule.RootPaths),
+            root =>
+                root.Contains(Path.Combine("CrashDumps"), StringComparison.OrdinalIgnoreCase)
+                || root.Contains(Path.Combine("Windows", "WER"), StringComparison.OrdinalIgnoreCase)
+                || root.Contains(Path.Combine("ReportArchive"), StringComparison.OrdinalIgnoreCase)
+                || root.Contains(Path.Combine("ReportQueue"), StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void WindowsDiagnostics_RecommendedCleanupRequiresConfirmation()
+    {
+        using var workspace = TestWorkspace.Create();
+        var crashDumpRoot = workspace.CreateDirectory(Path.Combine("LocalAppData", "CrashDumps"));
+        var crashDumpFile = workspace.CreateOldFile(Path.Combine("LocalAppData", "CrashDumps", "old.dmp"), "123");
+        var service = CreateRecommendedService(workspace.LogsPath);
+        var rule = new CleanupRule(
+            "cp.s1.user-crash-dumps",
+            "Current user crash dumps",
+            RiskLevel.S1LowRisk,
+            [crashDumpRoot],
+            ["*.dmp", "*.mdmp"],
+            [],
+            TimeSpan.FromDays(14),
+            "Old crash dump files.");
+
+        var result = service.Clean(
+            [rule],
+            confirmedByUser: false,
+            dryRun: false,
+            now: DateTimeOffset.UtcNow);
+
+        Assert.True(File.Exists(crashDumpFile));
+        Assert.Equal(0, result.DeletedCount);
+        Assert.Equal(1, result.SkippedCount);
+    }
+
     private static QuickSafeCleaner CreateQuickCleaner(string logPath)
     {
         var protectedPathPolicy = new ProtectedPathPolicy([]);

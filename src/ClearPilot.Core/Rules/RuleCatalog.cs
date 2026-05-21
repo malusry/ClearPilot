@@ -102,18 +102,31 @@ public static class RuleCatalog
             [root],
             ["*.dmp", "*.mdmp"],
             [],
-            TimeSpan.FromDays(7),
+            TimeSpan.FromDays(14),
             "Old crash dump files from user-mode applications. These are normally only useful for debugging recent crashes."));
 
-        AddIfAnyRootProvided(rules, GetWindowsErrorReportRoots(paths.LocalAppData), roots => new CleanupRule(
+        AddIfAnyRootProvided(rules, GetWindowsErrorReportArchiveAndTempRoots(paths.LocalAppData), roots => new CleanupRule(
             "cp.s1.windows-error-reports",
             "Windows Error Reporting files",
             RiskLevel.S1LowRisk,
             roots,
-            ["*"],
+            ["*.wer", "*.xml", "*.txt", "*.log", "*.dmp", "*.mdmp", "*.hdmp", "*.tmp"],
             [],
             TimeSpan.FromDays(14),
-            "Old user-mode Windows Error Reporting files. They are mainly useful for diagnostics and can be recreated by future crashes."));
+            "Old user-mode Windows Error Reporting archive/temp files. These diagnostics may no longer be available for troubleshooting after cleanup."));
+
+        AddIfPathProvided(rules, GetWindowsErrorReportQueueRoot(paths.LocalAppData), root => new CleanupRule(
+            "cp.s1.windows-error-report-queue",
+            "Windows Error Reporting queue files",
+            RiskLevel.S1LowRisk,
+            [root],
+            ["*.wer", "*.xml", "*.txt", "*.log", "*.dmp", "*.mdmp", "*.hdmp", "*.tmp"],
+            [
+                "active", "pending", "queue", "state", "session", "uploads", "attachments",
+                "active*", "pending*", "state*", "session*", "uploads*", "attachments*"
+            ],
+            TimeSpan.FromDays(30),
+            "Old queued user-mode WER diagnostics only. Active or pending report data is excluded and recent files are skipped."));
 
         AddIfAnyRootProvided(rules, GetInternetCacheRoots(paths.LocalAppData), roots => new CleanupRule(
             "cp.s1.windows-inet-cache",
@@ -1012,15 +1025,20 @@ public static class RuleCatalog
         ];
     }
 
-    private static IReadOnlyList<string> GetWindowsErrorReportRoots(string localAppData)
+    private static IReadOnlyList<string> GetWindowsErrorReportArchiveAndTempRoots(string localAppData)
     {
         var werRoot = Path.Combine(localAppData, "Microsoft", "Windows", "WER");
         return
         [
             Path.Combine(werRoot, "ReportArchive"),
-            Path.Combine(werRoot, "ReportQueue"),
             Path.Combine(werRoot, "Temp")
         ];
+    }
+
+    private static string GetWindowsErrorReportQueueRoot(string localAppData)
+    {
+        var werRoot = Path.Combine(localAppData, "Microsoft", "Windows", "WER");
+        return Path.Combine(werRoot, "ReportQueue");
     }
 
     private static IReadOnlyList<string> GetPythonBytecodeRoots(EnvironmentPaths paths)

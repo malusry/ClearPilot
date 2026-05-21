@@ -152,6 +152,25 @@ public sealed class RecommendationAdvisorTests
         }
     }
 
+    [Fact]
+    public void WindowsDiagnostics_ImpactTextMentionsTroubleshootingLoss()
+    {
+        foreach (var ruleId in new[]
+        {
+            "cp.s1.user-crash-dumps",
+            "cp.s1.windows-error-reports",
+            "cp.s1.windows-error-report-queue"
+        })
+        {
+            var advice = RecommendationAdvisor.ForRule(CreateRule(ruleId, RiskLevel.S1LowRisk));
+            Assert.Equal(RecommendationLevel.Optional, advice.Recommendation);
+            Assert.True(
+                advice.PossibleImpact.Contains("troubleshooting", StringComparison.OrdinalIgnoreCase)
+                || advice.PossibleImpact.Contains("diagnostic", StringComparison.OrdinalIgnoreCase),
+                $"Impact should mention troubleshooting/diagnostic loss for {ruleId}: {advice.PossibleImpact}");
+        }
+    }
+
     private static CleanupRule CreateRule(string id, RiskLevel riskLevel)
     {
         return new CleanupRule(

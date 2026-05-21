@@ -127,7 +127,22 @@ public sealed class CleanupFileScanner
             [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
             StringSplitOptions.RemoveEmptyEntries);
 
-        return segments.Any(segment => excludedSegments.Contains(segment, StringComparer.OrdinalIgnoreCase));
+        return segments.Any(segment => excludedSegments.Any(excluded => SegmentMatchesExclusion(segment, excluded)));
+    }
+
+    private static bool SegmentMatchesExclusion(string segment, string exclusion)
+    {
+        if (string.IsNullOrWhiteSpace(exclusion))
+        {
+            return false;
+        }
+
+        if (exclusion.Contains('*') || exclusion.Contains('?'))
+        {
+            return WildcardMatcher.IsMatch(segment, exclusion);
+        }
+
+        return string.Equals(segment, exclusion, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool MatchesAnyPattern(string fileName, IReadOnlyList<string> patterns)

@@ -311,6 +311,60 @@ public sealed class DeepSpaceAnalyzerTests
     }
 
     [Fact]
+    public void WindowsDiagnostics_SystemManagedAreasRemainS2()
+    {
+        using var workspace = TestWorkspace.Create();
+        var areas = new (string Id, string RelativePath, string Category)[]
+        {
+            ("cp.s2.windows-update-download", Path.Combine("Windows", "SoftwareDistribution", "Download"), "Windows Update download cache (analysis-only)"),
+            ("cp.s2.delivery-optimization-cache", Path.Combine("ProgramData", "Microsoft", "Windows", "DeliveryOptimization", "Cache"), "Delivery Optimization cache (analysis-only)"),
+            ("cp.s2.cbs-logs", Path.Combine("Windows", "Logs", "CBS"), "CBS logs (analysis-only)"),
+            ("cp.s2.dism-logs", Path.Combine("Windows", "Logs", "DISM"), "DISM logs (analysis-only)"),
+            ("cp.s2.memory-dump", Path.Combine("Windows", "MEMORY.DMP"), "System memory dump (analysis-only)"),
+            ("cp.s2.minidump", Path.Combine("Windows", "Minidump"), "Windows minidump folder (analysis-only)"),
+            ("cp.s2.windows-old", "Windows.old", "Windows.old folder (analysis-only)")
+        };
+
+        var definitions = new List<DeepSpaceAnalyzer.ReviewOnlyAreaDefinition>();
+        var rootPaths = new List<string>();
+        foreach (var area in areas)
+        {
+            var absolutePath = area.RelativePath.EndsWith(".DMP", StringComparison.OrdinalIgnoreCase)
+                ? workspace.CreateFile(area.RelativePath, 2048, DateTime.UtcNow.AddDays(-20))
+                : workspace.CreateDirectory(area.RelativePath);
+
+            definitions.Add(new DeepSpaceAnalyzer.ReviewOnlyAreaDefinition(
+                area.Id,
+                area.Category,
+                absolutePath,
+                "System-managed Windows cleanup area. ClearPilot reports this as review-only and does not delete it.",
+                "Use Windows Settings Storage, Storage Sense, Disk Cleanup, or built-in maintenance tools instead of direct deletion.",
+                DeepSpaceItemType.SystemManagedWindowsArea));
+            rootPaths.Add(absolutePath);
+        }
+
+        var analyzer = new DeepSpaceAnalyzer(new ProtectedPathPolicy([]), definitions);
+        var result = analyzer.Analyze(
+            new DeepSpaceAnalysisOptions
+            {
+                RootPaths = rootPaths,
+                LargeFileThresholdBytes = long.MaxValue,
+                LargeFolderThresholdBytes = long.MaxValue,
+                FileTypeSummaryThresholdBytes = long.MaxValue,
+                MaxDepth = 1,
+                MaxResults = 50
+            },
+            DateTimeOffset.UtcNow);
+
+        Assert.Equal(areas.Length, result.Count);
+        Assert.All(result, item =>
+        {
+            Assert.Equal(DeepSpaceItemType.SystemManagedWindowsArea, item.Type);
+            Assert.Equal(RiskLevel.S2ReviewRequired, item.RiskLevel);
+        });
+    }
+
+    [Fact]
     public void AnalyzeClassifiesGameLauncherReviewAreasAsS2AndDoesNotDelete()
     {
         using var workspace = TestWorkspace.Create();
@@ -760,6 +814,13 @@ public sealed class DeepSpaceAnalyzerTests
             }
 
             File.SetLastWriteTimeUtc(path, lastWriteTimeUtc);
+            return path;
+        }
+
+        public string CreateDirectory(string relativePath)
+        {
+            var path = Path.Combine(Root, relativePath);
+            Directory.CreateDirectory(path);
             return path;
         }
 

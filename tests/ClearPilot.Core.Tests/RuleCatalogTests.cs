@@ -69,6 +69,9 @@ public sealed class RuleCatalogTests
             Assert.Single(rules, rule => rule.RuleId == "cp.s1.windows-error-reports").RiskLevel);
         Assert.Equal(
             RiskLevel.S1LowRisk,
+            Assert.Single(rules, rule => rule.RuleId == "cp.s1.windows-error-report-queue").RiskLevel);
+        Assert.Equal(
+            RiskLevel.S1LowRisk,
             Assert.Single(rules, rule => rule.RuleId == "cp.s1.user-crash-dumps").RiskLevel);
     }
 
@@ -374,6 +377,7 @@ public sealed class RuleCatalogTests
         Assert.Contains("cp.s1.electron-app-ui-cache", ruleIds);
         Assert.Contains("cp.s1.directx-shader-cache", ruleIds);
         Assert.Contains("cp.s1.windows-error-reports", ruleIds);
+        Assert.Contains("cp.s1.windows-error-report-queue", ruleIds);
     }
 
     [Fact]
@@ -1207,5 +1211,96 @@ public sealed class RuleCatalogTests
                 && rule.RootPaths.Any(root =>
                     root.Contains(Path.Combine("Users", "tester", "Downloads"), StringComparison.OrdinalIgnoreCase)
                     || root.EndsWith("Downloads", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [Fact]
+    public void WindowsDiagnostics_UserCrashDumps_AreS1WithFourteenDayAge()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var rule = Assert.Single(RuleCatalog.CreateDefault(paths), rule => rule.RuleId == "cp.s1.user-crash-dumps");
+
+        Assert.Equal(RiskLevel.S1LowRisk, rule.RiskLevel);
+        Assert.Equal(TimeSpan.FromDays(14), rule.MinimumAge);
+        Assert.Contains("*.dmp", rule.IncludeFilePatterns, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("*.mdmp", rule.IncludeFilePatterns, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void WindowsDiagnostics_WerReportArchive_AreS1WithFourteenDayAge()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var rule = Assert.Single(RuleCatalog.CreateDefault(paths), rule => rule.RuleId == "cp.s1.windows-error-reports");
+
+        Assert.Equal(RiskLevel.S1LowRisk, rule.RiskLevel);
+        Assert.Equal(TimeSpan.FromDays(14), rule.MinimumAge);
+        Assert.Contains(
+            Path.Combine(paths.LocalAppData, "Microsoft", "Windows", "WER", "ReportArchive"),
+            rule.RootPaths,
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void WindowsDiagnostics_WerReportQueue_NotActiveOrRecent()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var rule = Assert.Single(RuleCatalog.CreateDefault(paths), rule => rule.RuleId == "cp.s1.windows-error-report-queue");
+
+        Assert.Equal(RiskLevel.S1LowRisk, rule.RiskLevel);
+        Assert.Equal(TimeSpan.FromDays(30), rule.MinimumAge);
+        Assert.Contains("active", rule.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("pending", rule.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("state", rule.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("session", rule.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("uploads", rule.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("attachments", rule.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("active*", rule.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("pending*", rule.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("state*", rule.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("session*", rule.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("uploads*", rule.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("attachments*", rule.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(
+            Path.Combine(paths.LocalAppData, "Microsoft", "Windows", "WER", "ReportQueue"),
+            rule.RootPaths,
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void WindowsDiagnostics_WerTemp_OldOnly()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var rule = Assert.Single(RuleCatalog.CreateDefault(paths), rule => rule.RuleId == "cp.s1.windows-error-reports");
+
+        Assert.Contains(
+            Path.Combine(paths.LocalAppData, "Microsoft", "Windows", "WER", "Temp"),
+            rule.RootPaths,
+            StringComparer.OrdinalIgnoreCase);
+        Assert.Equal(TimeSpan.FromDays(14), rule.MinimumAge);
+    }
+
+    [Fact]
+    public void WindowsDiagnostics_NoS0Promotion()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var diagnosticRules = RuleCatalog.CreateDefault(paths)
+            .Where(rule => rule.RuleId is "cp.s1.user-crash-dumps" or "cp.s1.windows-error-reports" or "cp.s1.windows-error-report-queue")
+            .ToArray();
+
+        Assert.Equal(3, diagnosticRules.Length);
+        Assert.All(diagnosticRules, rule => Assert.Equal(RiskLevel.S1LowRisk, rule.RiskLevel));
+    }
+
+    [Fact]
+    public void WindowsDiagnostics_DoesNotCleanSystemMemoryDumps()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester", @"C:\Windows", @"C:\ProgramData");
+        var rules = RuleCatalog.CreateDefault(paths);
+
+        Assert.DoesNotContain(
+            rules.SelectMany(rule => rule.RootPaths),
+            root =>
+                root.Contains(Path.Combine("Windows", "MEMORY.DMP"), StringComparison.OrdinalIgnoreCase)
+                || root.Contains(Path.Combine("Windows", "Minidump"), StringComparison.OrdinalIgnoreCase)
+                || root.Contains(Path.Combine("Windows.old"), StringComparison.OrdinalIgnoreCase));
     }
 }
