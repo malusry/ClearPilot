@@ -211,6 +211,65 @@ public sealed class CleanupRiskGateTests
     }
 
     [Fact]
+    public void QuickSafeClean_DoesNotIncludeAppProfileS1Targets()
+    {
+        using var workspace = TestWorkspace.Create();
+        var appRoot = workspace.CreateDirectory("discord-cache");
+        var appFile = workspace.CreateOldFile(Path.Combine("discord-cache", "cache.tmp"), "123");
+        var quick = CreateQuickCleaner(workspace.LogsPath);
+
+        var result = quick.Run(
+            [
+                new CleanupRule(
+                    "cp.s1.electron-app-ui-cache",
+                    "Electron app UI caches",
+                    RiskLevel.S1LowRisk,
+                    [appRoot],
+                    ["*.tmp"],
+                    [],
+                    TimeSpan.FromDays(1),
+                    "App profile cache.",
+                    ProcessGuardNames: ["Discord.exe", "Slack.exe", "Teams.exe"])
+            ],
+            dryRun: false,
+            now: DateTimeOffset.UtcNow);
+
+        Assert.True(File.Exists(appFile));
+        Assert.Equal(0, result.DeletedCount);
+        Assert.Equal(1, result.SkippedCount);
+    }
+
+    [Fact]
+    public void RecommendedCleanup_AppProfileS1_RequiresConfirmation()
+    {
+        using var workspace = TestWorkspace.Create();
+        var appRoot = workspace.CreateDirectory("vscode-cache");
+        var appFile = workspace.CreateOldFile(Path.Combine("vscode-cache", "cache.tmp"), "123");
+        var service = CreateRecommendedService(workspace.LogsPath);
+
+        var result = service.Clean(
+            [
+                new CleanupRule(
+                    "cp.s1.vscode-cache",
+                    "Visual Studio Code cache",
+                    RiskLevel.S1LowRisk,
+                    [appRoot],
+                    ["*.tmp"],
+                    [],
+                    TimeSpan.FromDays(1),
+                    "App profile cache.",
+                    ProcessGuardNames: ["Code.exe", "Code - Insiders.exe", "VSCodium.exe"])
+            ],
+            confirmedByUser: false,
+            dryRun: false,
+            now: DateTimeOffset.UtcNow);
+
+        Assert.True(File.Exists(appFile));
+        Assert.Equal(0, result.DeletedCount);
+        Assert.Equal(1, result.SkippedCount);
+    }
+
+    [Fact]
     public void QuickSafeClean_DoesNotIncludeDownloads()
     {
         var rules = RuleCatalog.CreateDefault(new EnvironmentPaths(

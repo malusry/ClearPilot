@@ -4,6 +4,68 @@ namespace ClearPilot.Core.Rules;
 
 public static class RuleCatalog
 {
+    private static readonly IReadOnlyList<string> AppProfileIdentityAndSessionExclusions =
+    [
+        "Local Storage",
+        "Session Storage",
+        "IndexedDB",
+        "Cookies",
+        "Login Data",
+        "Web Data",
+        "History",
+        "Bookmarks",
+        "account",
+        "accounts",
+        "auth",
+        "token",
+        "tokens",
+        "credential",
+        "credentials",
+        "profile",
+        "profiles"
+    ];
+
+    private static readonly IReadOnlyList<string> DiscordProcessGuardNames =
+    [
+        "Discord.exe",
+        "DiscordCanary.exe",
+        "DiscordPTB.exe"
+    ];
+
+    private static readonly IReadOnlyList<string> SlackProcessGuardNames =
+    [
+        "slack.exe",
+        "Slack.exe"
+    ];
+
+    private static readonly IReadOnlyList<string> TeamsProcessGuardNames =
+    [
+        "Teams.exe",
+        "ms-teams.exe",
+        "MSTeams.exe"
+    ];
+
+    private static readonly IReadOnlyList<string> VsCodeProcessGuardNames =
+    [
+        "Code.exe",
+        "Code - Insiders.exe",
+        "VSCodium.exe"
+    ];
+
+    private static readonly IReadOnlyList<string> JetBrainsProcessGuardNames =
+    [
+        "idea64.exe", "idea.exe",
+        "pycharm64.exe", "pycharm.exe",
+        "webstorm64.exe", "webstorm.exe",
+        "rider64.exe", "rider.exe",
+        "clion64.exe", "clion.exe",
+        "datagrip64.exe", "datagrip.exe",
+        "goland64.exe", "goland.exe",
+        "phpstorm64.exe", "phpstorm.exe",
+        "rubymine64.exe", "rubymine.exe",
+        "dataspell64.exe", "dataspell.exe"
+    ];
+
     public static IReadOnlyList<CleanupRule> CreateDefault()
     {
         return CreateDefault(EnvironmentPaths.Current());
@@ -417,9 +479,10 @@ public static class RuleCatalog
             RiskLevel.S1LowRisk,
             roots,
             ["*"],
-            [],
+            BuildVsCodeExclusions(),
             TimeSpan.FromDays(1),
-            "VS Code can recreate these UI caches. Extensions, settings, and workspace storage are excluded."));
+            "VS Code can recreate these UI caches. Extensions, settings, and workspace storage are excluded.",
+            ProcessGuardNames: VsCodeProcessGuardNames));
 
         AddIfPathProvided(rules, Path.Combine(paths.LocalAppData, "JetBrains"), root => new CleanupRule(
             "cp.s1.jetbrains-cache",
@@ -427,9 +490,10 @@ public static class RuleCatalog
             RiskLevel.S1LowRisk,
             GetJetBrainsCacheRoots(root),
             ["*"],
-            [],
+            BuildJetBrainsExclusions(),
             TimeSpan.FromDays(7),
-            "JetBrains IDEs can recreate cache directories. Configurations, plugins, and projects are excluded."));
+            "JetBrains IDEs can recreate cache directories. Configurations, plugins, and projects are excluded.",
+            ProcessGuardNames: JetBrainsProcessGuardNames));
 
         AddIfAnyRootProvided(rules, GetElectronAppCacheRoots(paths.LocalAppData), roots => new CleanupRule(
             "cp.s1.electron-app-ui-cache",
@@ -437,9 +501,10 @@ public static class RuleCatalog
             RiskLevel.S1LowRisk,
             roots,
             ["*"],
-            [],
+            BuildElectronAppExclusions(),
             TimeSpan.FromDays(1),
-            "Electron apps can recreate Cache, Code Cache, and GPUCache folders. Settings, local storage, sessions, and databases are excluded."));
+            "Electron apps can recreate Cache, Code Cache, and GPUCache folders. Settings, local storage, sessions, and databases are excluded.",
+            ProcessGuardNames: BuildElectronAppProcessGuardNames()));
 
         AddIfPathProvided(rules, Path.Combine(paths.LocalAppData, "Microsoft", "Windows", "Explorer"), root => new CleanupRule(
             "cp.s1.windows-thumbnail-cache",
@@ -648,6 +713,63 @@ public static class RuleCatalog
         }
 
         return roots;
+    }
+
+    private static IReadOnlyList<string> BuildElectronAppProcessGuardNames()
+    {
+        return DiscordProcessGuardNames
+            .Concat(SlackProcessGuardNames)
+            .Concat(TeamsProcessGuardNames)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static IReadOnlyList<string> BuildElectronAppExclusions()
+    {
+        return AppProfileIdentityAndSessionExclusions
+            .Concat(
+            [
+                "settings",
+                "config",
+                "workspaceStorage",
+                "extensions",
+                "plugins",
+                "databases"
+            ])
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static IReadOnlyList<string> BuildVsCodeExclusions()
+    {
+        return AppProfileIdentityAndSessionExclusions
+            .Concat(
+            [
+                "workspaceStorage",
+                "extensions",
+                "settings",
+                "config",
+                "User",
+                "globalStorage"
+            ])
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static IReadOnlyList<string> BuildJetBrainsExclusions()
+    {
+        return AppProfileIdentityAndSessionExclusions
+            .Concat(
+            [
+                "config",
+                "plugins",
+                "projects",
+                "workspace",
+                "options",
+                "settings"
+            ])
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
 
     private static IReadOnlyList<string> GetDirectXShaderCacheRoots(string localAppData)

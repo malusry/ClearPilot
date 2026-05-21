@@ -167,6 +167,43 @@ public sealed class CleanupScannerTests
         Assert.Equal(7, candidate.EstimatedBytes);
     }
 
+    [Fact]
+    public void AppProfile_ReparsePointUnderCacheRoot_Blocked()
+    {
+        using var workspace = TestWorkspace.Create();
+        var root = workspace.CreateDirectory("cache-root");
+        var linkPath = Path.Combine(root, "linked-cache");
+        var outsideDirectory = workspace.CreateDirectory("outside");
+        _ = workspace.CreateOldFile(Path.Combine("outside", "cache.tmp"), "123");
+        var rule = new CleanupRule(
+            "cp.s1.electron-app-ui-cache",
+            "Electron app UI caches",
+            RiskLevel.S1LowRisk,
+            [root],
+            ["*.tmp"],
+            [],
+            TimeSpan.FromDays(1),
+            "Test app profile cache.");
+        var scanner = new CleanupScanner(new ProtectedPathPolicy([]));
+
+        try
+        {
+            Directory.CreateSymbolicLink(linkPath, outsideDirectory);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return;
+        }
+        catch (IOException)
+        {
+            return;
+        }
+
+        var candidates = scanner.Scan([rule], DateTimeOffset.UtcNow);
+
+        Assert.Empty(candidates);
+    }
+
     private sealed class TestWorkspace : IDisposable
     {
         private TestWorkspace(string root)

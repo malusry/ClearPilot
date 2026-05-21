@@ -253,6 +253,40 @@ public sealed class RuleCatalogTests
     }
 
     [Fact]
+    public void AppProfile_Discord_S1Target_HasProcessGuard()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var rule = Assert.Single(RuleCatalog.CreateDefault(paths), rule => rule.RuleId == "cp.s1.electron-app-ui-cache");
+
+        Assert.Equal(RiskLevel.S1LowRisk, rule.RiskLevel);
+        Assert.Contains("Discord.exe", rule.EffectiveProcessGuardNames, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("DiscordCanary.exe", rule.EffectiveProcessGuardNames, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("DiscordPTB.exe", rule.EffectiveProcessGuardNames, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AppProfile_Slack_S1Target_HasProcessGuard()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var rule = Assert.Single(RuleCatalog.CreateDefault(paths), rule => rule.RuleId == "cp.s1.electron-app-ui-cache");
+
+        Assert.Equal(RiskLevel.S1LowRisk, rule.RiskLevel);
+        Assert.Contains("Slack.exe", rule.EffectiveProcessGuardNames, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AppProfile_Teams_S1Target_HasProcessGuard()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var rule = Assert.Single(RuleCatalog.CreateDefault(paths), rule => rule.RuleId == "cp.s1.electron-app-ui-cache");
+
+        Assert.Equal(RiskLevel.S1LowRisk, rule.RiskLevel);
+        Assert.Contains("Teams.exe", rule.EffectiveProcessGuardNames, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("ms-teams.exe", rule.EffectiveProcessGuardNames, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("MSTeams.exe", rule.EffectiveProcessGuardNames, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void VsCodeCacheRuleExcludesSettingsExtensionsAndWorkspaceStorage()
     {
         var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
@@ -266,6 +300,20 @@ public sealed class RuleCatalogTests
             Assert.DoesNotContain("settings", root, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("workspaceStorage", root, StringComparison.OrdinalIgnoreCase);
         });
+
+        Assert.Contains("Code.exe", rule.EffectiveProcessGuardNames, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("Code - Insiders.exe", rule.EffectiveProcessGuardNames, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("VSCodium.exe", rule.EffectiveProcessGuardNames, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AppProfile_VSCode_S1Target_HasProcessGuard()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var rule = Assert.Single(RuleCatalog.CreateDefault(paths), rule => rule.RuleId == "cp.s1.vscode-cache");
+
+        Assert.Equal(RiskLevel.S1LowRisk, rule.RiskLevel);
+        Assert.NotEmpty(rule.EffectiveProcessGuardNames);
     }
 
     [Fact]
@@ -287,6 +335,11 @@ public sealed class RuleCatalogTests
                 Assert.DoesNotContain("plugins", rootPath, StringComparison.OrdinalIgnoreCase);
                 Assert.DoesNotContain("config", rootPath, StringComparison.OrdinalIgnoreCase);
             });
+
+            Assert.Contains("idea64.exe", rule.EffectiveProcessGuardNames, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("idea.exe", rule.EffectiveProcessGuardNames, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("rider64.exe", rule.EffectiveProcessGuardNames, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("rider.exe", rule.EffectiveProcessGuardNames, StringComparer.OrdinalIgnoreCase);
         }
         finally
         {
@@ -431,6 +484,103 @@ public sealed class RuleCatalogTests
         Assert.DoesNotContain(rules, rule => rule.RootPaths.Any(root =>
             root.EndsWith(Path.Combine("steamapps", "shadercache"), StringComparison.OrdinalIgnoreCase)
             || root.EndsWith("depotcache", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [Fact]
+    public void AppProfile_JetBrains_S1Target_HasProcessGuard()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var rule = Assert.Single(RuleCatalog.CreateDefault(paths), rule => rule.RuleId == "cp.s1.jetbrains-cache");
+
+        Assert.Equal(RiskLevel.S1LowRisk, rule.RiskLevel);
+        Assert.NotEmpty(rule.EffectiveProcessGuardNames);
+    }
+
+    [Fact]
+    public void Teams_WebView2_NotBroadlyGuarded()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var rule = Assert.Single(RuleCatalog.CreateDefault(paths), rule => rule.RuleId == "cp.s1.electron-app-ui-cache");
+
+        Assert.DoesNotContain("msedgewebview2.exe", rule.EffectiveProcessGuardNames, StringComparer.OrdinalIgnoreCase);
+        Assert.DoesNotContain("msedgewebview2", rule.EffectiveProcessGuardNames, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void JetBrains_ProcessGuard_Covers64AndNon64BitNames()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var rule = Assert.Single(RuleCatalog.CreateDefault(paths), rule => rule.RuleId == "cp.s1.jetbrains-cache");
+
+        var expected = new[]
+        {
+            ("idea64.exe", "idea.exe"),
+            ("pycharm64.exe", "pycharm.exe"),
+            ("webstorm64.exe", "webstorm.exe"),
+            ("rider64.exe", "rider.exe"),
+            ("clion64.exe", "clion.exe"),
+            ("datagrip64.exe", "datagrip.exe"),
+            ("goland64.exe", "goland.exe"),
+            ("phpstorm64.exe", "phpstorm.exe"),
+            ("rubymine64.exe", "rubymine.exe"),
+            ("dataspell64.exe", "dataspell.exe")
+        };
+
+        foreach (var (x64, x86) in expected)
+        {
+            Assert.Contains(x64, rule.EffectiveProcessGuardNames, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains(x86, rule.EffectiveProcessGuardNames, StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public void AppProfile_BlockedIdentitySessionStorageData()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var electron = Assert.Single(RuleCatalog.CreateDefault(paths), rule => rule.RuleId == "cp.s1.electron-app-ui-cache");
+        var vscode = Assert.Single(RuleCatalog.CreateDefault(paths), rule => rule.RuleId == "cp.s1.vscode-cache");
+        var jetbrains = Assert.Single(RuleCatalog.CreateDefault(paths), rule => rule.RuleId == "cp.s1.jetbrains-cache");
+        var required = new[] { "Local Storage", "Session Storage", "IndexedDB", "Cookies", "Login Data" };
+
+        Assert.All(required, key =>
+        {
+            Assert.Contains(key, electron.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains(key, vscode.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains(key, jetbrains.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+        });
+        Assert.Contains("workspaceStorage", vscode.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("extensions", vscode.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("plugins", jetbrains.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("settings", jetbrains.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AppProfile_BroadAppRoot_IsNotCleanupTarget()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var electron = Assert.Single(RuleCatalog.CreateDefault(paths), rule => rule.RuleId == "cp.s1.electron-app-ui-cache");
+        var vscode = Assert.Single(RuleCatalog.CreateDefault(paths), rule => rule.RuleId == "cp.s1.vscode-cache");
+
+        Assert.DoesNotContain(electron.RootPaths, root =>
+            root.EndsWith(Path.Combine("Discord"), StringComparison.OrdinalIgnoreCase)
+            || root.EndsWith(Path.Combine("Slack"), StringComparison.OrdinalIgnoreCase)
+            || root.EndsWith(Path.Combine("Microsoft", "Teams"), StringComparison.OrdinalIgnoreCase)
+            || root.EndsWith(Path.Combine("Microsoft", "MSTeams"), StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(vscode.RootPaths, root =>
+            root.EndsWith(Path.Combine("Code"), StringComparison.OrdinalIgnoreCase)
+            || root.EndsWith(Path.Combine("Code - Insiders"), StringComparison.OrdinalIgnoreCase)
+            || root.EndsWith(Path.Combine("VSCodium"), StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void AppProfile_UnknownCacheLikeFolder_IsS2OrNeedsEvidence()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var rules = RuleCatalog.CreateDefault(paths);
+
+        Assert.DoesNotContain(rules, rule =>
+            rule.RootPaths.Any(root => root.Contains(Path.Combine("UnknownApp", "Cache"), StringComparison.OrdinalIgnoreCase)));
+        Assert.DoesNotContain(rules, rule => rule.RuleId.Contains("zoom", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

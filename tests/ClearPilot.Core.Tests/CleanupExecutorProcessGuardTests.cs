@@ -84,6 +84,76 @@ public sealed class CleanupExecutorProcessGuardTests
         Assert.Equal(CleanupDecision.RecommendedToClean, item.CleanupDecision);
     }
 
+    [Fact]
+    public void AppProfile_ProcessGuardHit_SkipsCleanup()
+    {
+        using var workspace = TestWorkspace.Create();
+        var root = workspace.CreateDirectory("discord-cache");
+        var filePath = workspace.CreateOldFile(Path.Combine("discord-cache", "cache.tmp"), "123");
+        var rule = new CleanupRule(
+            "cp.s1.electron-app-ui-cache",
+            "Electron app UI caches",
+            RiskLevel.S1LowRisk,
+            [root],
+            ["*.tmp"],
+            [],
+            TimeSpan.FromDays(1),
+            "Test app profile cache cleanup rule.",
+            ProcessGuardNames: ["Discord.exe", "Slack.exe", "Teams.exe"]);
+        var executor = CreateExecutor(workspace.LogsPath, new StubProcessInspector(isRunning: true));
+
+        var result = executor.Run(
+            CleanupMode.RecommendedCleanup,
+            [rule],
+            new HashSet<RiskLevel> { RiskLevel.S1LowRisk },
+            dryRun: false,
+            now: DateTimeOffset.UtcNow,
+            disallowedRiskMessage: "risk");
+
+        Assert.True(File.Exists(filePath));
+        Assert.Equal(0, result.DeletedCount);
+        Assert.Equal(1, result.SkippedCount);
+        var item = Assert.Single(result.Items);
+        Assert.Equal(CleanupItemAction.Skipped, item.Action);
+        Assert.Equal("Blocked:LauncherRunning", item.ProcessGuardResult);
+        Assert.Equal(CleanupDecision.NotRecommendedToClean, item.CleanupDecision);
+    }
+
+    [Fact]
+    public void AppProfile_ProcessGuardHit_DoesNotStopOrPrompt()
+    {
+        using var workspace = TestWorkspace.Create();
+        var root = workspace.CreateDirectory("vscode-cache");
+        var filePath = workspace.CreateOldFile(Path.Combine("vscode-cache", "cache.tmp"), "123");
+        var rule = new CleanupRule(
+            "cp.s1.vscode-cache",
+            "Visual Studio Code cache",
+            RiskLevel.S1LowRisk,
+            [root],
+            ["*.tmp"],
+            [],
+            TimeSpan.FromDays(1),
+            "Test VS Code cache cleanup rule.",
+            ProcessGuardNames: ["Code.exe", "Code - Insiders.exe", "VSCodium.exe"]);
+        var executor = CreateExecutor(workspace.LogsPath, new StubProcessInspector(isRunning: true));
+
+        var result = executor.Run(
+            CleanupMode.RecommendedCleanup,
+            [rule],
+            new HashSet<RiskLevel> { RiskLevel.S1LowRisk },
+            dryRun: false,
+            now: DateTimeOffset.UtcNow,
+            disallowedRiskMessage: "risk");
+
+        Assert.True(File.Exists(filePath));
+        var item = Assert.Single(result.Items);
+        Assert.Equal(CleanupItemAction.Skipped, item.Action);
+        Assert.Equal("Blocked:LauncherRunning", item.ProcessGuardResult);
+        Assert.DoesNotContain("stop", item.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("kill", item.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("close", item.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static CleanupExecutor CreateExecutor(string logsPath, IProcessInspector processInspector)
     {
         var protectedPathPolicy = new ProtectedPathPolicy([]);
