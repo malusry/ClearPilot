@@ -73,6 +73,32 @@ public sealed class RecommendedCleanupCliOutputTests
     }
 
     [Fact]
+    public void RecommendedCleanup_ZhCn_AppProfileLogs_DoesNotFallbackToGenericAdvice()
+    {
+        using var workspace = RecommendedCliTestWorkspace.Create();
+        workspace.CreateAppProfileLogAndCrashFixtures();
+
+        var output = workspace.RunRecommendedCleanupCli(Language.SimplifiedChinese, "2\n0\n\n0\n");
+
+        Assert.Contains("\u65E7\u5E94\u7528\u65E5\u5FD7\u53EF\u5728\u5E94\u7528\u5173\u95ED\u540E\u6E05\u7406", output, StringComparison.Ordinal);
+        Assert.Contains("\u5386\u53F2\u95EE\u9898\u6392\u67E5\u65E5\u5FD7", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("cp.s1.electron-app-logs", output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void RecommendedCleanup_ZhCn_AppProfileCrashDiagnostics_DoesNotFallbackToGenericAdvice()
+    {
+        using var workspace = RecommendedCliTestWorkspace.Create();
+        workspace.CreateAppProfileLogAndCrashFixtures();
+
+        var output = workspace.RunRecommendedCleanupCli(Language.SimplifiedChinese, "2\n0\n\n0\n");
+
+        Assert.Contains("\u65E7\u7684\u5DF2\u5B8C\u6210\u5D29\u6E83\u8BCA\u65AD\u53EF\u5728\u5E94\u7528\u5173\u95ED\u540E\u6E05\u7406", output, StringComparison.Ordinal);
+        Assert.Contains("\u5386\u53F2\u5D29\u6E83\u6392\u67E5\u6570\u636E", output, StringComparison.Ordinal);
+        Assert.DoesNotContain("cp.s1.electron-app-crash-reports", output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void RecommendedCleanup_AllSelection_OnlyEligibleRecommendedS1()
     {
         using var workspace = RecommendedCliTestWorkspace.Create();
@@ -203,6 +229,26 @@ public sealed class RecommendedCleanupCliOutputTests
                 lastWriteUtc: DateTime.UtcNow.AddDays(-2));
 
             return (recommendedFile, notRecommendedFile, processGuardBlockedRecommendedFile);
+        }
+
+        public (string appLogFile, string crashReportFile, string crashCompletedFile) CreateAppProfileLogAndCrashFixtures()
+        {
+            var appLogFile = CreateFile(
+                Path.Combine(LocalAppDataRoot, "Discord", "logs", "old.log"),
+                sizeBytes: 4096,
+                lastWriteUtc: DateTime.UtcNow.AddDays(-10));
+
+            var crashReportFile = CreateFile(
+                Path.Combine(LocalAppDataRoot, "Discord", "Crashpad", "reports", "old.dmp"),
+                sizeBytes: 4096,
+                lastWriteUtc: DateTime.UtcNow.AddDays(-10));
+
+            var crashCompletedFile = CreateFile(
+                Path.Combine(LocalAppDataRoot, "Discord", "Crashpad", "completed", "old.mdmp"),
+                sizeBytes: 4096,
+                lastWriteUtc: DateTime.UtcNow.AddDays(-10));
+
+            return (appLogFile, crashReportFile, crashCompletedFile);
         }
 
         public ProcessGuardHandle StartFakeSteamProcess()

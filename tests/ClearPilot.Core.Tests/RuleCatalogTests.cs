@@ -295,7 +295,11 @@ public sealed class RuleCatalogTests
         Assert.NotEmpty(rule.RootPaths);
         Assert.All(rule.RootPaths, root =>
         {
-            Assert.Contains("Cache", root, StringComparison.OrdinalIgnoreCase);
+            Assert.True(
+                root.EndsWith("Cache", StringComparison.OrdinalIgnoreCase)
+                || root.EndsWith("Code Cache", StringComparison.OrdinalIgnoreCase)
+                || root.EndsWith("GPUCache", StringComparison.OrdinalIgnoreCase),
+                $"Unexpected VS Code app profile root: {root}");
             Assert.DoesNotContain("extensions", root, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("settings", root, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("workspaceStorage", root, StringComparison.OrdinalIgnoreCase);
@@ -581,6 +585,406 @@ public sealed class RuleCatalogTests
         Assert.DoesNotContain(rules, rule =>
             rule.RootPaths.Any(root => root.Contains(Path.Combine("UnknownApp", "Cache"), StringComparison.OrdinalIgnoreCase)));
         Assert.DoesNotContain(rules, rule => rule.RuleId.Contains("zoom", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void AppProfilesV1_Discord_CoverageIncludesExactCacheLogRoots()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var rules = RuleCatalog.CreateDefault(paths);
+        var cacheRule = Assert.Single(rules, rule => rule.RuleId == "cp.s1.electron-app-ui-cache");
+        var logRule = Assert.Single(rules, rule => rule.RuleId == "cp.s1.electron-app-logs");
+
+        foreach (var rootName in new[] { "Discord", "DiscordCanary", "DiscordPTB" })
+        {
+            Assert.Contains(cacheRule.RootPaths, root => root.EndsWith(Path.Combine(rootName, "Cache"), StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(logRule.RootPaths, root => root.EndsWith(Path.Combine(rootName, "logs"), StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    [Fact]
+    public void AppProfilesV1_Slack_CoverageIncludesExactCacheLogRoots()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var rules = RuleCatalog.CreateDefault(paths);
+        var cacheRule = Assert.Single(rules, rule => rule.RuleId == "cp.s1.electron-app-ui-cache");
+        var logRule = Assert.Single(rules, rule => rule.RuleId == "cp.s1.electron-app-logs");
+
+        Assert.Contains(cacheRule.RootPaths, root => root.EndsWith(Path.Combine("Slack", "Cache"), StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(logRule.RootPaths, root => root.EndsWith(Path.Combine("Slack", "logs"), StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void AppProfilesV1_Teams_CoverageIncludesExactCacheLogRoots()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var rules = RuleCatalog.CreateDefault(paths);
+        var cacheRule = Assert.Single(rules, rule => rule.RuleId == "cp.s1.electron-app-ui-cache");
+        var logRule = Assert.Single(rules, rule => rule.RuleId == "cp.s1.electron-app-logs");
+
+        foreach (var rootName in new[]
+        {
+            Path.Combine("Microsoft", "Teams"),
+            Path.Combine("Microsoft", "MSTeams")
+        })
+        {
+            Assert.Contains(cacheRule.RootPaths, root => root.EndsWith(Path.Combine(rootName, "Cache"), StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(logRule.RootPaths, root => root.EndsWith(Path.Combine(rootName, "logs"), StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    [Fact]
+    public void AppProfilesV1_VSCode_CoverageIncludesExactCacheLogRoots()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var rules = RuleCatalog.CreateDefault(paths);
+        var cacheRule = Assert.Single(rules, candidate => candidate.RuleId == "cp.s1.vscode-cache");
+        var logRule = Assert.Single(rules, candidate => candidate.RuleId == "cp.s1.vscode-logs");
+
+        foreach (var appName in new[] { "Code", "Code - Insiders", "VSCodium" })
+        {
+            Assert.Contains(cacheRule.RootPaths, root => root.EndsWith(Path.Combine(appName, "Cache"), StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(logRule.RootPaths, root => root.EndsWith(Path.Combine(appName, "logs"), StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    [Fact]
+    public void AppProfilesV1_JetBrains_CoverageIncludesExactCacheLogRoots()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "ClearPilot.Tests", Guid.NewGuid().ToString("N"));
+        try
+        {
+            var localAppData = Path.Combine(root, "LocalAppData");
+            Directory.CreateDirectory(Path.Combine(localAppData, "JetBrains", "Rider2026.1"));
+            Directory.CreateDirectory(Path.Combine(localAppData, "JetBrains", "IdeaIC2026.1"));
+            var paths = new EnvironmentPaths(Path.Combine(root, "Temp"), localAppData, Path.Combine(root, "User"));
+            var rules = RuleCatalog.CreateDefault(paths);
+            var cacheRule = Assert.Single(rules, candidate => candidate.RuleId == "cp.s1.jetbrains-cache");
+            var logRule = Assert.Single(rules, candidate => candidate.RuleId == "cp.s1.jetbrains-logs");
+
+            foreach (var product in new[] { "Rider2026.1", "IdeaIC2026.1" })
+            {
+                Assert.Contains(cacheRule.RootPaths, path => path.EndsWith(Path.Combine(product, "caches"), StringComparison.OrdinalIgnoreCase));
+                Assert.Contains(logRule.RootPaths, path => path.EndsWith(Path.Combine(product, "log"), StringComparison.OrdinalIgnoreCase));
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void AppProfilesV1_AllS1TargetsHaveProcessGuards()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var rules = RuleCatalog.CreateDefault(paths)
+            .Where(rule => rule.RuleId is
+                "cp.s1.electron-app-ui-cache" or
+                "cp.s1.electron-app-logs" or
+                "cp.s1.electron-app-crash-reports" or
+                "cp.s1.electron-app-crash-completed" or
+                "cp.s1.vscode-cache" or
+                "cp.s1.vscode-logs" or
+                "cp.s1.vscode-crash-reports" or
+                "cp.s1.vscode-crash-completed" or
+                "cp.s1.jetbrains-cache" or
+                "cp.s1.jetbrains-logs")
+            .ToArray();
+
+        Assert.Equal(10, rules.Length);
+        Assert.All(rules, rule =>
+        {
+            Assert.Equal(RiskLevel.S1LowRisk, rule.RiskLevel);
+            Assert.NotEmpty(rule.EffectiveProcessGuardNames);
+        });
+    }
+
+    [Fact]
+    public void AppProfilesV1_NoAppProfileTargetsAreS0()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var rules = RuleCatalog.CreateDefault(paths);
+
+        Assert.DoesNotContain(rules, rule =>
+            rule.RiskLevel == RiskLevel.S0VeryLowRisk
+            && rule.RootPaths.Any(root =>
+                root.Contains(Path.Combine("Discord"), StringComparison.OrdinalIgnoreCase)
+                || root.Contains(Path.Combine("Slack"), StringComparison.OrdinalIgnoreCase)
+                || root.Contains(Path.Combine("Microsoft", "Teams"), StringComparison.OrdinalIgnoreCase)
+                || root.Contains(Path.Combine("MSTeams"), StringComparison.OrdinalIgnoreCase)
+                || root.Contains(Path.Combine("Code"), StringComparison.OrdinalIgnoreCase)
+                || root.Contains(Path.Combine("VSCodium"), StringComparison.OrdinalIgnoreCase)
+                || root.Contains(Path.Combine("JetBrains"), StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [Fact]
+    public void AppProfilesV1_NewS1Targets_NotQuickSafeOrS0()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var rules = RuleCatalog.CreateDefault(paths)
+            .Where(rule => rule.RuleId is
+                "cp.s1.electron-app-logs" or
+                "cp.s1.electron-app-crash-reports" or
+                "cp.s1.electron-app-crash-completed" or
+                "cp.s1.vscode-logs" or
+                "cp.s1.vscode-crash-reports" or
+                "cp.s1.vscode-crash-completed" or
+                "cp.s1.jetbrains-logs")
+            .ToArray();
+
+        Assert.Equal(7, rules.Length);
+        Assert.All(rules, rule =>
+        {
+            Assert.Equal(RiskLevel.S1LowRisk, rule.RiskLevel);
+            Assert.False(rule.CanRunWithoutConfirmation);
+        });
+    }
+
+    [Fact]
+    public void AppProfilesV1_BlockedDataClassesRemainExcluded()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var electron = Assert.Single(RuleCatalog.CreateDefault(paths), rule => rule.RuleId == "cp.s1.electron-app-ui-cache");
+        var vscode = Assert.Single(RuleCatalog.CreateDefault(paths), rule => rule.RuleId == "cp.s1.vscode-cache");
+        var jetbrains = Assert.Single(RuleCatalog.CreateDefault(paths), rule => rule.RuleId == "cp.s1.jetbrains-cache");
+
+        foreach (var key in new[] { "Local Storage", "Session Storage", "IndexedDB", "Cookies", "Login Data", "Web Data", "History", "Bookmarks" })
+        {
+            Assert.Contains(key, electron.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains(key, vscode.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains(key, jetbrains.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+        }
+
+        Assert.Contains("workspaceStorage", vscode.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("globalStorage", vscode.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("extensions", vscode.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("settings", vscode.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+
+        Assert.Contains("plugins", jetbrains.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("config", jetbrains.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("settings", jetbrains.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AppProfilesV1_UnknownCacheLikeFoldersAreS2OrNeedsEvidence()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var rules = RuleCatalog.CreateDefault(paths);
+
+        Assert.DoesNotContain(rules, rule =>
+            rule.RootPaths.Any(root =>
+                root.Contains(Path.Combine("UnknownApp", "Cache"), StringComparison.OrdinalIgnoreCase)
+                || root.Contains(Path.Combine("UnknownApp", "Logs"), StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [Fact]
+    public void AppProfilesV1_NoBroadAppRootScanning()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var electron = Assert.Single(RuleCatalog.CreateDefault(paths), rule => rule.RuleId == "cp.s1.electron-app-ui-cache");
+        var vscode = Assert.Single(RuleCatalog.CreateDefault(paths), rule => rule.RuleId == "cp.s1.vscode-cache");
+
+        Assert.DoesNotContain(electron.RootPaths, root =>
+            root.EndsWith(Path.Combine("Discord"), StringComparison.OrdinalIgnoreCase)
+            || root.EndsWith(Path.Combine("DiscordCanary"), StringComparison.OrdinalIgnoreCase)
+            || root.EndsWith(Path.Combine("DiscordPTB"), StringComparison.OrdinalIgnoreCase)
+            || root.EndsWith(Path.Combine("Slack"), StringComparison.OrdinalIgnoreCase)
+            || root.EndsWith(Path.Combine("Microsoft", "Teams"), StringComparison.OrdinalIgnoreCase)
+            || root.EndsWith(Path.Combine("Microsoft", "MSTeams"), StringComparison.OrdinalIgnoreCase));
+
+        Assert.DoesNotContain(vscode.RootPaths, root =>
+            root.EndsWith(Path.Combine("Code"), StringComparison.OrdinalIgnoreCase)
+            || root.EndsWith(Path.Combine("Code - Insiders"), StringComparison.OrdinalIgnoreCase)
+            || root.EndsWith(Path.Combine("VSCodium"), StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void AppProfilesV1_CrashpadRoot_IsNotDeletedAsDirectory()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var crashRules = RuleCatalog.CreateDefault(paths)
+            .Where(rule => rule.RuleId is
+                "cp.s1.electron-app-crash-reports" or
+                "cp.s1.electron-app-crash-completed" or
+                "cp.s1.vscode-crash-reports" or
+                "cp.s1.vscode-crash-completed")
+            .ToArray();
+
+        Assert.NotEmpty(crashRules);
+        Assert.All(crashRules, rule =>
+        {
+            Assert.DoesNotContain(rule.RootPaths, root => root.EndsWith("Crashpad", StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain("*", rule.IncludeFilePatterns);
+            Assert.Equal(TimeSpan.FromDays(7), rule.MinimumAge);
+            Assert.False(rule.Recursive);
+        });
+    }
+
+    [Fact]
+    public void AppProfilesV1_CrashpadReports_AllowedDiagnosticFiles_AreS1()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var crashRules = RuleCatalog.CreateDefault(paths)
+            .Where(rule => rule.RuleId is "cp.s1.electron-app-crash-reports" or "cp.s1.vscode-crash-reports")
+            .ToArray();
+
+        Assert.NotEmpty(crashRules);
+        Assert.All(crashRules, rule =>
+        {
+            Assert.Equal(RiskLevel.S1LowRisk, rule.RiskLevel);
+            Assert.Contains("*.dmp", rule.IncludeFilePatterns, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("*.mdmp", rule.IncludeFilePatterns, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("*.dump", rule.IncludeFilePatterns, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("*.log", rule.IncludeFilePatterns, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("*.txt", rule.IncludeFilePatterns, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains(rule.RootPaths, root => root.EndsWith(Path.Combine("Crashpad", "reports"), StringComparison.OrdinalIgnoreCase));
+            Assert.NotEmpty(rule.EffectiveProcessGuardNames);
+        });
+    }
+
+    [Fact]
+    public void AppProfilesV1_CrashpadCompleted_AllowedDiagnosticFiles_AreS1()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var crashRules = RuleCatalog.CreateDefault(paths)
+            .Where(rule => rule.RuleId is "cp.s1.electron-app-crash-completed" or "cp.s1.vscode-crash-completed")
+            .ToArray();
+
+        Assert.NotEmpty(crashRules);
+        Assert.All(crashRules, rule =>
+        {
+            Assert.Contains(rule.RootPaths, root => root.EndsWith(Path.Combine("Crashpad", "completed"), StringComparison.OrdinalIgnoreCase));
+            Assert.Equal(TimeSpan.FromDays(7), rule.MinimumAge);
+            Assert.DoesNotContain("*.dump", rule.IncludeFilePatterns, StringComparer.OrdinalIgnoreCase);
+            Assert.NotEmpty(rule.EffectiveProcessGuardNames);
+        });
+    }
+
+    [Fact]
+    public void AppProfilesV1_CrashDiagnostics_HaveSevenDayAgeThreshold()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var crashRules = RuleCatalog.CreateDefault(paths)
+            .Where(rule => rule.RuleId is
+                "cp.s1.electron-app-crash-reports" or
+                "cp.s1.electron-app-crash-completed" or
+                "cp.s1.vscode-crash-reports" or
+                "cp.s1.vscode-crash-completed")
+            .ToArray();
+
+        Assert.Equal(4, crashRules.Length);
+        Assert.All(crashRules, rule => Assert.Equal(TimeSpan.FromDays(7), rule.MinimumAge));
+    }
+
+    [Fact]
+    public void AppProfilesV1_CrashpadPendingOrNew_IsNotS1()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var crashRules = RuleCatalog.CreateDefault(paths)
+            .Where(rule => rule.RuleId is
+                "cp.s1.electron-app-crash-reports" or
+                "cp.s1.electron-app-crash-completed" or
+                "cp.s1.vscode-crash-reports" or
+                "cp.s1.vscode-crash-completed")
+            .ToArray();
+
+        Assert.NotEmpty(crashRules);
+        Assert.All(crashRules, rule =>
+        {
+            Assert.DoesNotContain(rule.RootPaths, root => root.EndsWith(Path.Combine("Crashpad", "pending"), StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(rule.RootPaths, root => root.EndsWith(Path.Combine("Crashpad", "new"), StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(rule.RootPaths, root => root.EndsWith(Path.Combine("Crashpad", "uploads"), StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(rule.RootPaths, root => root.EndsWith(Path.Combine("Crashpad", "attachments"), StringComparison.OrdinalIgnoreCase));
+        });
+    }
+
+    [Fact]
+    public void AppProfilesV1_CrashpadUnknownExtensions_AreNotS1()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var crashRules = RuleCatalog.CreateDefault(paths)
+            .Where(rule => rule.RuleId is
+                "cp.s1.electron-app-crash-reports" or
+                "cp.s1.electron-app-crash-completed" or
+                "cp.s1.vscode-crash-reports" or
+                "cp.s1.vscode-crash-completed")
+            .ToArray();
+
+        Assert.NotEmpty(crashRules);
+        Assert.All(crashRules, rule =>
+        {
+            Assert.DoesNotContain("*", rule.IncludeFilePatterns);
+            Assert.DoesNotContain("*.json", rule.IncludeFilePatterns, StringComparer.OrdinalIgnoreCase);
+            Assert.DoesNotContain("*.sqlite", rule.IncludeFilePatterns, StringComparer.OrdinalIgnoreCase);
+            Assert.DoesNotContain("*.db", rule.IncludeFilePatterns, StringComparer.OrdinalIgnoreCase);
+            Assert.DoesNotContain("*.dat", rule.IncludeFilePatterns, StringComparer.OrdinalIgnoreCase);
+        });
+    }
+
+    [Fact]
+    public void AppProfilesV1_CrashpadStateFiles_AreExcludedOrBlocked()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var crashRules = RuleCatalog.CreateDefault(paths)
+            .Where(rule => rule.RuleId is
+                "cp.s1.electron-app-crash-reports" or
+                "cp.s1.electron-app-crash-completed" or
+                "cp.s1.vscode-crash-reports" or
+                "cp.s1.vscode-crash-completed")
+            .ToArray();
+
+        Assert.NotEmpty(crashRules);
+        Assert.All(crashRules, rule =>
+        {
+            Assert.Contains("metadata", rule.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("database", rule.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("databases", rule.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("settings", rule.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("config", rule.ExcludePathSegments, StringComparer.OrdinalIgnoreCase);
+            Assert.DoesNotContain("*.dat", rule.IncludeFilePatterns, StringComparer.OrdinalIgnoreCase);
+        });
+    }
+
+    [Fact]
+    public void AppProfilesV1_Logs_HaveSevenDayAgeThreshold()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var logRules = RuleCatalog.CreateDefault(paths)
+            .Where(rule => rule.RuleId is "cp.s1.electron-app-logs" or "cp.s1.vscode-logs" or "cp.s1.jetbrains-logs")
+            .ToArray();
+
+        Assert.Equal(3, logRules.Length);
+        Assert.All(logRules, rule =>
+        {
+            Assert.Equal(RiskLevel.S1LowRisk, rule.RiskLevel);
+            Assert.Equal(TimeSpan.FromDays(7), rule.MinimumAge);
+            Assert.Contains("*.log", rule.IncludeFilePatterns, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("*.txt", rule.IncludeFilePatterns, StringComparer.OrdinalIgnoreCase);
+            Assert.False(rule.Recursive);
+            Assert.NotEmpty(rule.EffectiveProcessGuardNames);
+        });
+    }
+
+    [Fact]
+    public void AppProfilesV1_CacheRoots_HaveProcessGuardsAndMinimumAge()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var cacheRules = RuleCatalog.CreateDefault(paths)
+            .Where(rule => rule.RuleId is "cp.s1.electron-app-ui-cache" or "cp.s1.vscode-cache" or "cp.s1.jetbrains-cache")
+            .ToArray();
+
+        Assert.Equal(3, cacheRules.Length);
+        Assert.All(cacheRules, rule =>
+        {
+            Assert.Equal(RiskLevel.S1LowRisk, rule.RiskLevel);
+            Assert.NotNull(rule.MinimumAge);
+            Assert.True(rule.MinimumAge!.Value >= TimeSpan.FromDays(1));
+            Assert.NotEmpty(rule.EffectiveProcessGuardNames);
+        });
     }
 
     [Fact]

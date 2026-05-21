@@ -154,6 +154,39 @@ public sealed class CleanupExecutorProcessGuardTests
         Assert.DoesNotContain("close", item.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void AppProfilesV1_ProcessGuardHit_SkipOnly()
+    {
+        using var workspace = TestWorkspace.Create();
+        var root = workspace.CreateDirectory("app-profile-cache");
+        var filePath = workspace.CreateOldFile(Path.Combine("app-profile-cache", "cache.tmp"), "123");
+        var rule = new CleanupRule(
+            "cp.s1.electron-app-ui-cache",
+            "Electron app UI caches",
+            RiskLevel.S1LowRisk,
+            [root],
+            ["*.tmp"],
+            [],
+            TimeSpan.FromDays(1),
+            "Test app profile cache cleanup rule.",
+            ProcessGuardNames: ["Discord.exe", "Slack.exe", "Teams.exe"]);
+        var executor = CreateExecutor(workspace.LogsPath, new StubProcessInspector(isRunning: true));
+
+        var result = executor.Run(
+            CleanupMode.RecommendedCleanup,
+            [rule],
+            new HashSet<RiskLevel> { RiskLevel.S1LowRisk },
+            dryRun: false,
+            now: DateTimeOffset.UtcNow,
+            disallowedRiskMessage: "risk");
+
+        Assert.True(File.Exists(filePath));
+        Assert.Equal(0, result.DeletedCount);
+        var item = Assert.Single(result.Items);
+        Assert.Equal(CleanupItemAction.Skipped, item.Action);
+        Assert.Equal("Blocked:LauncherRunning", item.ProcessGuardResult);
+    }
+
     private static CleanupExecutor CreateExecutor(string logsPath, IProcessInspector processInspector)
     {
         var protectedPathPolicy = new ProtectedPathPolicy([]);

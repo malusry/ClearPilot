@@ -81,6 +81,43 @@ public sealed class RecommendationAdvisorTests
         Assert.Equal(RecommendationLevel.Blocked, blocked.Recommendation);
     }
 
+    [Fact]
+    public void RecommendationMapping_AppProfileLogs_EnglishAndZhCn()
+    {
+        foreach (var ruleId in new[]
+        {
+            "cp.s1.electron-app-logs",
+            "cp.s1.vscode-logs",
+            "cp.s1.jetbrains-logs"
+        })
+        {
+            var advice = RecommendationAdvisor.ForRule(CreateRule(ruleId, RiskLevel.S1LowRisk));
+            Assert.Equal(RecommendationLevel.Optional, advice.Recommendation);
+            Assert.Equal("advice.app-profile-logs", advice.AdviceKey);
+            Assert.Contains("Old app logs can be removed after the app is closed", advice.Reason, StringComparison.Ordinal);
+            Assert.Contains("Historical troubleshooting logs may no longer be available", advice.PossibleImpact, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void RecommendationMapping_AppProfileCrashDiagnostics_EnglishAndZhCn()
+    {
+        foreach (var ruleId in new[]
+        {
+            "cp.s1.electron-app-crash-reports",
+            "cp.s1.electron-app-crash-completed",
+            "cp.s1.vscode-crash-reports",
+            "cp.s1.vscode-crash-completed"
+        })
+        {
+            var advice = RecommendationAdvisor.ForRule(CreateRule(ruleId, RiskLevel.S1LowRisk));
+            Assert.Equal(RecommendationLevel.Optional, advice.Recommendation);
+            Assert.Equal("advice.app-profile-crash-diagnostics", advice.AdviceKey);
+            Assert.Contains("Old completed crash diagnostics can be removed after the app is closed", advice.Reason, StringComparison.Ordinal);
+            Assert.Contains("Historical crash investigation data may no longer be available", advice.PossibleImpact, StringComparison.Ordinal);
+        }
+    }
+
     private static CleanupRule CreateRule(string id, RiskLevel riskLevel)
     {
         return new CleanupRule(

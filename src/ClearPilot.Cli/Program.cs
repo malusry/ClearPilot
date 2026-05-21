@@ -550,6 +550,23 @@ static string FormatCleanupCandidateCategory(MessageCatalog text, CleanupCandida
         return candidate.Category;
     }
 
+    if (candidate.RuleId is
+        "cp.s1.electron-app-logs" or
+        "cp.s1.vscode-logs" or
+        "cp.s1.jetbrains-logs")
+    {
+        return "\u5E94\u7528\u65E5\u5FD7";
+    }
+
+    if (candidate.RuleId is
+        "cp.s1.electron-app-crash-reports" or
+        "cp.s1.electron-app-crash-completed" or
+        "cp.s1.vscode-crash-reports" or
+        "cp.s1.vscode-crash-completed")
+    {
+        return "\u5E94\u7528\u5D29\u6E83\u8BCA\u65AD";
+    }
+
     return candidate.RuleId switch
     {
         "cp.s0.user-temp" => "当前用户临时文件",
@@ -605,6 +622,23 @@ static string FormatCleanupCandidateExplanation(MessageCatalog text, CleanupCand
     if (text.Language != Language.SimplifiedChinese)
     {
         return candidate.Explanation;
+    }
+
+    if (candidate.RuleId is
+        "cp.s1.electron-app-logs" or
+        "cp.s1.vscode-logs" or
+        "cp.s1.jetbrains-logs")
+    {
+        return "\u65E7\u5E94\u7528\u65E5\u5FD7\u53EF\u5728\u5E94\u7528\u5173\u95ED\u540E\u6E05\u7406\uff1B\u8D26\u53F7\u3001\u4F1A\u8BDD\u3001\u8BBE\u7F6E\u548C\u5DE5\u4F5C\u533A\u6570\u636E\u5DF2\u6392\u9664\u3002";
+    }
+
+    if (candidate.RuleId is
+        "cp.s1.electron-app-crash-reports" or
+        "cp.s1.electron-app-crash-completed" or
+        "cp.s1.vscode-crash-reports" or
+        "cp.s1.vscode-crash-completed")
+    {
+        return "\u65E7\u7684\u5DF2\u5B8C\u6210\u5D29\u6E83\u8BCA\u65AD\u53EF\u5728\u5E94\u7528\u5173\u95ED\u540E\u6E05\u7406\u3002";
     }
 
     return candidate.RuleId switch
@@ -1217,6 +1251,23 @@ static string GetDecisionReasonForDisplayV46(MessageCatalog text, CleanupCandida
         return candidate.CleanupDecisionReason;
     }
 
+    if (candidate.RuleId is
+        "cp.s1.electron-app-logs" or
+        "cp.s1.vscode-logs" or
+        "cp.s1.jetbrains-logs")
+    {
+        return "\u65E7\u5E94\u7528\u65E5\u5FD7\u53EF\u5728\u5E94\u7528\u5173\u95ED\u540E\u6E05\u7406\uff1B\u8D26\u53F7\u3001\u4F1A\u8BDD\u3001\u8BBE\u7F6E\u548C\u5DE5\u4F5C\u533A\u6570\u636E\u5DF2\u6392\u9664\u3002";
+    }
+
+    if (candidate.RuleId is
+        "cp.s1.electron-app-crash-reports" or
+        "cp.s1.electron-app-crash-completed" or
+        "cp.s1.vscode-crash-reports" or
+        "cp.s1.vscode-crash-completed")
+    {
+        return "\u65E7\u7684\u5DF2\u5B8C\u6210\u5D29\u6E83\u8BCA\u65AD\u53EF\u5728\u5E94\u7528\u5173\u95ED\u540E\u6E05\u7406\u3002";
+    }
+
     return decision switch
     {
         CleanupDecision.RecommendedToClean => candidate.RuleId switch
@@ -1247,6 +1298,26 @@ static string GetPossibleImpactForDisplayV46(MessageCatalog text, CleanupCandida
     if (text.Language != Language.SimplifiedChinese)
     {
         return candidate.PossibleImpact;
+    }
+
+    if (decision is CleanupDecision.RecommendedToClean or CleanupDecision.NotRecommendedToClean)
+    {
+        if (candidate.RuleId is
+            "cp.s1.electron-app-logs" or
+            "cp.s1.vscode-logs" or
+            "cp.s1.jetbrains-logs")
+        {
+            return "\u5386\u53F2\u95EE\u9898\u6392\u67E5\u65E5\u5FD7\u53EF\u80FD\u4E0D\u518D\u53EF\u7528\u3002";
+        }
+
+        if (candidate.RuleId is
+            "cp.s1.electron-app-crash-reports" or
+            "cp.s1.electron-app-crash-completed" or
+            "cp.s1.vscode-crash-reports" or
+            "cp.s1.vscode-crash-completed")
+        {
+            return "\u5386\u53F2\u5D29\u6E83\u6392\u67E5\u6570\u636E\u53EF\u80FD\u4E0D\u518D\u53EF\u7528\u3002";
+        }
     }
 
     return decision switch

@@ -484,6 +484,42 @@ public static class RuleCatalog
             "VS Code can recreate these UI caches. Extensions, settings, and workspace storage are excluded.",
             ProcessGuardNames: VsCodeProcessGuardNames));
 
+        AddIfAnyRootProvided(rules, GetVsCodeLogRoots(paths.LocalAppData), roots => new CleanupRule(
+            "cp.s1.vscode-logs",
+            "Visual Studio Code logs",
+            RiskLevel.S1LowRisk,
+            roots,
+            ["*.log", "*.txt", "*.old"],
+            BuildVsCodeExclusions(),
+            TimeSpan.FromDays(7),
+            "VS Code logs are diagnostic files that are usually safe to remove after review.",
+            Recursive: false,
+            ProcessGuardNames: VsCodeProcessGuardNames));
+
+        AddIfAnyRootProvided(rules, GetVsCodeCrashReportRoots(paths.LocalAppData), roots => new CleanupRule(
+            "cp.s1.vscode-crash-reports",
+            "Visual Studio Code crash reports",
+            RiskLevel.S1LowRisk,
+            roots,
+            ["*.dmp", "*.mdmp", "*.dump", "*.log", "*.txt"],
+            BuildCrashDiagnosticExclusions(),
+            TimeSpan.FromDays(7),
+            "Completed crash reports can be removed after review. Pending uploads and state data are excluded.",
+            Recursive: false,
+            ProcessGuardNames: VsCodeProcessGuardNames));
+
+        AddIfAnyRootProvided(rules, GetVsCodeCrashCompletedRoots(paths.LocalAppData), roots => new CleanupRule(
+            "cp.s1.vscode-crash-completed",
+            "Visual Studio Code completed crash diagnostics",
+            RiskLevel.S1LowRisk,
+            roots,
+            ["*.dmp", "*.mdmp", "*.log", "*.txt"],
+            BuildCrashDiagnosticExclusions(),
+            TimeSpan.FromDays(7),
+            "Completed crash diagnostics can be removed after review. Pending uploads and state data are excluded.",
+            Recursive: false,
+            ProcessGuardNames: VsCodeProcessGuardNames));
+
         AddIfPathProvided(rules, Path.Combine(paths.LocalAppData, "JetBrains"), root => new CleanupRule(
             "cp.s1.jetbrains-cache",
             "JetBrains IDE caches",
@@ -491,8 +527,20 @@ public static class RuleCatalog
             GetJetBrainsCacheRoots(root),
             ["*"],
             BuildJetBrainsExclusions(),
-            TimeSpan.FromDays(7),
+            TimeSpan.FromDays(1),
             "JetBrains IDEs can recreate cache directories. Configurations, plugins, and projects are excluded.",
+            ProcessGuardNames: JetBrainsProcessGuardNames));
+
+        AddIfPathProvided(rules, Path.Combine(paths.LocalAppData, "JetBrains"), root => new CleanupRule(
+            "cp.s1.jetbrains-logs",
+            "JetBrains IDE logs",
+            RiskLevel.S1LowRisk,
+            GetJetBrainsLogRoots(root),
+            ["*.log", "*.txt", "*.old"],
+            BuildJetBrainsExclusions(),
+            TimeSpan.FromDays(7),
+            "JetBrains diagnostic logs are usually safe to clear after review.",
+            Recursive: false,
             ProcessGuardNames: JetBrainsProcessGuardNames));
 
         AddIfAnyRootProvided(rules, GetElectronAppCacheRoots(paths.LocalAppData), roots => new CleanupRule(
@@ -504,6 +552,42 @@ public static class RuleCatalog
             BuildElectronAppExclusions(),
             TimeSpan.FromDays(1),
             "Electron apps can recreate Cache, Code Cache, and GPUCache folders. Settings, local storage, sessions, and databases are excluded.",
+            ProcessGuardNames: BuildElectronAppProcessGuardNames()));
+
+        AddIfAnyRootProvided(rules, GetElectronAppLogRoots(paths.LocalAppData), roots => new CleanupRule(
+            "cp.s1.electron-app-logs",
+            "Electron app logs",
+            RiskLevel.S1LowRisk,
+            roots,
+            ["*.log", "*.txt", "*.old"],
+            BuildElectronAppExclusions(),
+            TimeSpan.FromDays(7),
+            "Old app logs are diagnostic files that are usually safe to remove after review.",
+            Recursive: false,
+            ProcessGuardNames: BuildElectronAppProcessGuardNames()));
+
+        AddIfAnyRootProvided(rules, GetElectronAppCrashReportRoots(paths.LocalAppData), roots => new CleanupRule(
+            "cp.s1.electron-app-crash-reports",
+            "Electron app crash reports",
+            RiskLevel.S1LowRisk,
+            roots,
+            ["*.dmp", "*.mdmp", "*.dump", "*.log", "*.txt"],
+            BuildCrashDiagnosticExclusions(),
+            TimeSpan.FromDays(7),
+            "Completed crash reports can be removed after review. Pending uploads and state data are excluded.",
+            Recursive: false,
+            ProcessGuardNames: BuildElectronAppProcessGuardNames()));
+
+        AddIfAnyRootProvided(rules, GetElectronAppCrashCompletedRoots(paths.LocalAppData), roots => new CleanupRule(
+            "cp.s1.electron-app-crash-completed",
+            "Electron app completed crash diagnostics",
+            RiskLevel.S1LowRisk,
+            roots,
+            ["*.dmp", "*.mdmp", "*.log", "*.txt"],
+            BuildCrashDiagnosticExclusions(),
+            TimeSpan.FromDays(7),
+            "Completed crash diagnostics can be removed after review. Pending uploads and state data are excluded.",
+            Recursive: false,
             ProcessGuardNames: BuildElectronAppProcessGuardNames()));
 
         AddIfPathProvided(rules, Path.Combine(paths.LocalAppData, "Microsoft", "Windows", "Explorer"), root => new CleanupRule(
@@ -696,23 +780,80 @@ public static class RuleCatalog
         return roots;
     }
 
+    private static IReadOnlyList<string> GetVsCodeLogRoots(string localAppData)
+    {
+        return
+        [
+            Path.Combine(localAppData, "Code", "logs"),
+            Path.Combine(localAppData, "Code - Insiders", "logs"),
+            Path.Combine(localAppData, "VSCodium", "logs")
+        ];
+    }
+
+    private static IReadOnlyList<string> GetVsCodeCrashReportRoots(string localAppData)
+    {
+        return
+        [
+            Path.Combine(localAppData, "Code", "Crashpad", "reports"),
+            Path.Combine(localAppData, "Code - Insiders", "Crashpad", "reports"),
+            Path.Combine(localAppData, "VSCodium", "Crashpad", "reports"),
+        ];
+    }
+
+    private static IReadOnlyList<string> GetVsCodeCrashCompletedRoots(string localAppData)
+    {
+        return
+        [
+            Path.Combine(localAppData, "Code", "Crashpad", "completed"),
+            Path.Combine(localAppData, "Code - Insiders", "Crashpad", "completed"),
+            Path.Combine(localAppData, "VSCodium", "Crashpad", "completed")
+        ];
+    }
+
     private static IReadOnlyList<string> GetElectronAppCacheRoots(string localAppData)
     {
         var roots = new List<string>();
-        foreach (var appRoot in new[]
-        {
-            Path.Combine(localAppData, "Discord"),
-            Path.Combine(localAppData, "DiscordCanary"),
-            Path.Combine(localAppData, "Slack"),
-            Path.Combine(localAppData, "Microsoft", "Teams"),
-            Path.Combine(localAppData, "Microsoft", "TeamsMeetingAddin"),
-            Path.Combine(localAppData, "Microsoft", "MSTeams")
-        })
+        foreach (var appRoot in GetElectronAppProfileRoots(localAppData))
         {
             roots.AddRange(GetSingleProfileChromiumCacheRoots(appRoot));
         }
 
         return roots;
+    }
+
+    private static IReadOnlyList<string> GetElectronAppLogRoots(string localAppData)
+    {
+        return GetElectronAppProfileRoots(localAppData)
+            .Select(appRoot => Path.Combine(appRoot, "logs"))
+            .ToArray();
+    }
+
+    private static IReadOnlyList<string> GetElectronAppCrashReportRoots(string localAppData)
+    {
+        return GetElectronAppProfileRoots(localAppData)
+            .Select(appRoot => Path.Combine(appRoot, "Crashpad", "reports"))
+            .ToArray();
+    }
+
+    private static IReadOnlyList<string> GetElectronAppCrashCompletedRoots(string localAppData)
+    {
+        return GetElectronAppProfileRoots(localAppData)
+            .Select(appRoot => Path.Combine(appRoot, "Crashpad", "completed"))
+            .ToArray();
+    }
+
+    private static IReadOnlyList<string> GetElectronAppProfileRoots(string localAppData)
+    {
+        return
+        [
+            Path.Combine(localAppData, "Discord"),
+            Path.Combine(localAppData, "DiscordCanary"),
+            Path.Combine(localAppData, "DiscordPTB"),
+            Path.Combine(localAppData, "Slack"),
+            Path.Combine(localAppData, "Microsoft", "Teams"),
+            Path.Combine(localAppData, "Microsoft", "TeamsMeetingAddin"),
+            Path.Combine(localAppData, "Microsoft", "MSTeams")
+        ];
     }
 
     private static IReadOnlyList<string> BuildElectronAppProcessGuardNames()
@@ -767,6 +908,26 @@ public static class RuleCatalog
                 "workspace",
                 "options",
                 "settings"
+            ])
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static IReadOnlyList<string> BuildCrashDiagnosticExclusions()
+    {
+        return AppProfileIdentityAndSessionExclusions
+            .Concat(
+            [
+                "pending",
+                "new",
+                "uploads",
+                "attachments",
+                "metadata",
+                "database",
+                "databases",
+                "settings",
+                "config",
+                "state"
             ])
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -881,7 +1042,40 @@ public static class RuleCatalog
             }
         }
 
-        return [Path.Combine(jetBrainsRoot, "caches")];
+        return
+        [
+            Path.Combine(jetBrainsRoot, "caches")
+        ];
+    }
+
+    private static IReadOnlyList<string> GetJetBrainsLogRoots(string jetBrainsRoot)
+    {
+        if (Directory.Exists(jetBrainsRoot))
+        {
+            try
+            {
+                var discoveredLogs = Directory
+                    .EnumerateDirectories(jetBrainsRoot, "*", SearchOption.TopDirectoryOnly)
+                    .Select(directory => Path.Combine(directory, "log"))
+                    .ToArray();
+
+                if (discoveredLogs.Length > 0)
+                {
+                    return discoveredLogs;
+                }
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+        }
+
+        return
+        [
+            Path.Combine(jetBrainsRoot, "log")
+        ];
     }
 
     private static string GetWindowsTempRoot(string windowsRoot)

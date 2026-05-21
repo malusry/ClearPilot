@@ -240,6 +240,32 @@ public sealed class CleanupRiskGateTests
     }
 
     [Fact]
+    public void AppProfilesV1_QuickSafeDoesNotIncludeAppProfiles()
+    {
+        var rules = RuleCatalog.CreateDefault(new EnvironmentPaths(
+            @"C:\Users\tester\AppData\Local\Temp",
+            @"C:\Users\tester\AppData\Local",
+            @"C:\Users\tester",
+            @"C:\Windows",
+            @"C:\ProgramData",
+            @"C:\Program Files",
+            @"C:\Program Files (x86)"));
+
+        var quickRules = rules.Where(rule => rule.RiskLevel == RiskLevel.S0VeryLowRisk).ToArray();
+        Assert.NotEmpty(quickRules);
+        Assert.DoesNotContain(
+            quickRules.SelectMany(rule => rule.RootPaths),
+            root =>
+                root.Contains(Path.Combine("Discord"), StringComparison.OrdinalIgnoreCase)
+                || root.Contains(Path.Combine("Slack"), StringComparison.OrdinalIgnoreCase)
+                || root.Contains(Path.Combine("Microsoft", "Teams"), StringComparison.OrdinalIgnoreCase)
+                || root.Contains(Path.Combine("MSTeams"), StringComparison.OrdinalIgnoreCase)
+                || root.Contains(Path.Combine("Code"), StringComparison.OrdinalIgnoreCase)
+                || root.Contains(Path.Combine("VSCodium"), StringComparison.OrdinalIgnoreCase)
+                || root.Contains(Path.Combine("JetBrains"), StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void RecommendedCleanup_AppProfileS1_RequiresConfirmation()
     {
         using var workspace = TestWorkspace.Create();

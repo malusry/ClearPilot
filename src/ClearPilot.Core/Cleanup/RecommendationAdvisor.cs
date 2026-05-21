@@ -153,6 +153,27 @@ public static class RecommendationAdvisor
                 "Clean only when diagnostics are not needed.",
                 "No game install or save data is removed."),
 
+            "cp.s1.electron-app-logs" or
+            "cp.s1.vscode-logs" or
+            "cp.s1.jetbrains-logs" => new TargetAdvice(
+                RecommendationLevel.Optional,
+                "advice.app-profile-logs",
+                "Old app logs can be removed after the app is closed; account, session, settings, and workspace data are excluded.",
+                "Historical troubleshooting logs may no longer be available.",
+                "Clean only after review and explicit confirmation.",
+                "Process guard, denylist checks, and deletion-time revalidation remain enforced."),
+
+            "cp.s1.electron-app-crash-reports" or
+            "cp.s1.electron-app-crash-completed" or
+            "cp.s1.vscode-crash-reports" or
+            "cp.s1.vscode-crash-completed" => new TargetAdvice(
+                RecommendationLevel.Optional,
+                "advice.app-profile-crash-diagnostics",
+                "Old completed crash diagnostics can be removed after the app is closed.",
+                "Historical crash investigation data may no longer be available.",
+                "Clean only after review and explicit confirmation.",
+                "Only allowlisted files in completed diagnostic subpaths are eligible; process guard and safety gates still apply."),
+
             _ => DefaultForRisk(rule.RiskLevel)
         };
 

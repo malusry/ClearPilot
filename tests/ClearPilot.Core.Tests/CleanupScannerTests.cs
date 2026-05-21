@@ -204,6 +204,90 @@ public sealed class CleanupScannerTests
         Assert.Empty(candidates);
     }
 
+    [Fact]
+    public void AppProfilesV1_CrashpadRules_OnlyIncludeAllowedCompletedDiagnostics()
+    {
+        using var workspace = TestWorkspace.Create();
+        var localAppData = workspace.CreateDirectory("LocalAppData");
+        var userProfile = workspace.CreateDirectory("User");
+        var reportsRoot = workspace.CreateDirectory(Path.Combine("LocalAppData", "Discord", "Crashpad", "reports"));
+        var completedRoot = workspace.CreateDirectory(Path.Combine("LocalAppData", "Discord", "Crashpad", "completed"));
+        _ = workspace.CreateDirectory(Path.Combine("LocalAppData", "Discord", "Crashpad", "pending"));
+        _ = workspace.CreateDirectory(Path.Combine("LocalAppData", "Discord", "Crashpad", "uploads"));
+
+        var includedDmp = workspace.CreateOldFile(Path.Combine("LocalAppData", "Discord", "Crashpad", "reports", "good.dmp"), "12345");
+        var completedMdmp = workspace.CreateOldFile(Path.Combine("LocalAppData", "Discord", "Crashpad", "completed", "good.mdmp"), "1234");
+        var reportTxt = workspace.CreateOldFile(Path.Combine("LocalAppData", "Discord", "Crashpad", "reports", "note.txt"), "note");
+        var reportDat = workspace.CreateOldFile(Path.Combine("LocalAppData", "Discord", "Crashpad", "reports", "settings.dat"), "blocked");
+        var reportMetadata = workspace.CreateOldFile(Path.Combine("LocalAppData", "Discord", "Crashpad", "reports", "metadata.json"), "blocked");
+        var pendingDmp = workspace.CreateOldFile(Path.Combine("LocalAppData", "Discord", "Crashpad", "pending", "pending.dmp"), "blocked");
+        var uploadsDmp = workspace.CreateOldFile(Path.Combine("LocalAppData", "Discord", "Crashpad", "uploads", "upload.dmp"), "blocked");
+
+        var oldEnough = DateTime.UtcNow.AddDays(-10);
+        foreach (var filePath in new[] { includedDmp, completedMdmp, reportTxt, reportDat, reportMetadata, pendingDmp, uploadsDmp })
+        {
+            File.SetLastWriteTimeUtc(filePath, oldEnough);
+        }
+
+        var rules = RuleCatalog.CreateDefault(new EnvironmentPaths(
+            workspace.CreateDirectory("Temp"),
+            localAppData,
+            userProfile));
+        var reportsRule = Assert.Single(rules, rule => rule.RuleId == "cp.s1.electron-app-crash-reports");
+        var completedRule = Assert.Single(rules, rule => rule.RuleId == "cp.s1.electron-app-crash-completed");
+        Assert.Contains(reportsRoot, reportsRule.RootPaths, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(completedRoot, completedRule.RootPaths, StringComparer.OrdinalIgnoreCase);
+
+        var scanner = new CleanupScanner(new ProtectedPathPolicy([]));
+        var candidates = scanner.Scan([reportsRule, completedRule], DateTimeOffset.UtcNow);
+
+        Assert.Equal(2, candidates.Count);
+        var reportsCandidate = Assert.Single(candidates, candidate => candidate.RuleId == "cp.s1.electron-app-crash-reports");
+        var completedCandidate = Assert.Single(candidates, candidate => candidate.RuleId == "cp.s1.electron-app-crash-completed");
+
+        Assert.Equal(RiskLevel.S1LowRisk, reportsCandidate.RiskLevel);
+        Assert.Equal(2, reportsCandidate.FileCount);
+        Assert.Equal(
+            new FileInfo(includedDmp).Length
+            + new FileInfo(reportTxt).Length,
+            reportsCandidate.EstimatedBytes);
+
+        Assert.Equal(RiskLevel.S1LowRisk, completedCandidate.RiskLevel);
+        Assert.Equal(1, completedCandidate.FileCount);
+        Assert.Equal(new FileInfo(completedMdmp).Length, completedCandidate.EstimatedBytes);
+    }
+
+    [Fact]
+    public void AppProfilesV1_CrashDiagnostics_YoungerThanSevenDays_NotEligible()
+    {
+        using var workspace = TestWorkspace.Create();
+        var localAppData = workspace.CreateDirectory("LocalAppData");
+        var userProfile = workspace.CreateDirectory("User");
+        var reportsFile = workspace.CreateFile(
+            Path.Combine("LocalAppData", "Discord", "Crashpad", "reports", "new.dmp"),
+            "12345");
+        var completedFile = workspace.CreateFile(
+            Path.Combine("LocalAppData", "Discord", "Crashpad", "completed", "new.mdmp"),
+            "1234");
+
+        var newerThanThreshold = DateTime.UtcNow.AddDays(-2);
+        File.SetLastWriteTimeUtc(reportsFile, newerThanThreshold);
+        File.SetLastWriteTimeUtc(completedFile, newerThanThreshold);
+
+        var rules = RuleCatalog.CreateDefault(new EnvironmentPaths(
+            workspace.CreateDirectory("Temp"),
+            localAppData,
+            userProfile));
+        var reportsRule = Assert.Single(rules, rule => rule.RuleId == "cp.s1.electron-app-crash-reports");
+        var completedRule = Assert.Single(rules, rule => rule.RuleId == "cp.s1.electron-app-crash-completed");
+
+        var scanner = new CleanupScanner(new ProtectedPathPolicy([]));
+        var candidates = scanner.Scan([reportsRule, completedRule], DateTimeOffset.UtcNow);
+
+        Assert.DoesNotContain(candidates, candidate => candidate.RuleId == "cp.s1.electron-app-crash-reports");
+        Assert.DoesNotContain(candidates, candidate => candidate.RuleId == "cp.s1.electron-app-crash-completed");
+    }
+
     private sealed class TestWorkspace : IDisposable
     {
         private TestWorkspace(string root)
