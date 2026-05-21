@@ -347,6 +347,122 @@ public sealed class DeepSpaceAnalyzerTests
     }
 
     [Fact]
+    public void ZoomProfile_DeepSpaceDetectsZoomReadOnlyRoots()
+    {
+        using var workspace = TestWorkspace.Create();
+        var zoomRoot = Path.Combine(workspace.Root, "AppData", "Roaming", "Zoom");
+        _ = workspace.CreateFile(Path.Combine("AppData", "Roaming", "Zoom", "logs", "zoom.log"), 2048, DateTime.UtcNow.AddDays(-10));
+        var analyzer = new DeepSpaceAnalyzer(
+            new ProtectedPathPolicy([]),
+            [
+                new DeepSpaceAnalyzer.ReviewOnlyAreaDefinition(
+                    "cp.s2.zoom-appdata",
+                    "Zoom app data (analysis-only evidence)",
+                    zoomRoot,
+                    "Zoom app data may include logs, cache, meeting diagnostics, and app state. ClearPilot reports size only for evidence and does not clean Zoom data in v0.4.",
+                    "Review only. Keep recordings, account/session data, settings, and databases unchanged unless Zoom guidance explicitly recommends maintenance.",
+                    DeepSpaceItemType.SystemManagedWindowsArea)
+            ]);
+        var options = new DeepSpaceAnalysisOptions
+        {
+            RootPaths = [zoomRoot],
+            LargeFileThresholdBytes = long.MaxValue,
+            LargeFolderThresholdBytes = long.MaxValue,
+            FileTypeSummaryThresholdBytes = long.MaxValue,
+            MaxDepth = 1,
+            MaxResults = 20
+        };
+
+        var result = analyzer.Analyze(options, DateTimeOffset.UtcNow);
+        var item = Assert.Single(result, candidate => candidate.Path.Equals(zoomRoot, StringComparison.OrdinalIgnoreCase));
+
+        Assert.Equal("cp.s2.zoom-appdata", item.TargetId);
+        Assert.Equal(DeepSpaceItemType.SystemManagedWindowsArea, item.Type);
+    }
+
+    [Fact]
+    public void ZoomProfile_FindingsAreS2OrNeedsEvidence()
+    {
+        using var workspace = TestWorkspace.Create();
+        var zoomRoot = Path.Combine(workspace.Root, "AppData", "Local", "Zoom");
+        _ = workspace.CreateFile(Path.Combine("AppData", "Local", "Zoom", "data", "cache.bin"), 4096, DateTime.UtcNow.AddDays(-10));
+        var analyzer = new DeepSpaceAnalyzer(
+            new ProtectedPathPolicy([]),
+            [
+                new DeepSpaceAnalyzer.ReviewOnlyAreaDefinition(
+                    "cp.s2.zoom-localappdata",
+                    "Zoom local app data (analysis-only evidence)",
+                    zoomRoot,
+                    "Zoom local data may include logs, cache, meeting diagnostics, and app state. ClearPilot reports size only for evidence and does not clean Zoom data in v0.4.",
+                    "Review only. Keep recordings, account/session data, settings, and databases unchanged unless Zoom guidance explicitly recommends maintenance.",
+                    DeepSpaceItemType.SystemManagedWindowsArea)
+            ]);
+
+        var result = analyzer.Analyze(
+            new DeepSpaceAnalysisOptions
+            {
+                RootPaths = [zoomRoot],
+                LargeFileThresholdBytes = long.MaxValue,
+                LargeFolderThresholdBytes = long.MaxValue,
+                FileTypeSummaryThresholdBytes = long.MaxValue,
+                MaxDepth = 1,
+                MaxResults = 20
+            },
+            DateTimeOffset.UtcNow);
+        var item = Assert.Single(result, candidate => candidate.Path.Equals(zoomRoot, StringComparison.OrdinalIgnoreCase));
+        var advice = RecommendationAdvisor.ForDeepSpaceItem(item);
+        var decision = CleanupDecisionAdvisor.ForDeepSpaceItem(item, advice);
+
+        Assert.Equal(RiskLevel.S2ReviewRequired, item.RiskLevel);
+        Assert.Equal(CleanupDecision.AnalysisOnlyDoNotClean, decision.Decision);
+    }
+
+    [Fact]
+    public void ZoomProfile_ForbiddenDataClassesExcludedOrNotCleanupTargets()
+    {
+        using var workspace = TestWorkspace.Create();
+        var zoomRoot = Path.Combine(workspace.Root, "AppData", "Roaming", "Zoom");
+        _ = workspace.CreateFile(Path.Combine("AppData", "Roaming", "Zoom", "recordings", "meeting.mp4"), 1024, DateTime.UtcNow.AddDays(-10));
+        _ = workspace.CreateFile(Path.Combine("AppData", "Roaming", "Zoom", "session", "session.json"), 512, DateTime.UtcNow.AddDays(-10));
+        _ = workspace.CreateFile(Path.Combine("AppData", "Roaming", "Zoom", "account", "account.db"), 512, DateTime.UtcNow.AddDays(-10));
+        _ = workspace.CreateFile(Path.Combine("AppData", "Roaming", "Zoom", "settings", "config.ini"), 512, DateTime.UtcNow.AddDays(-10));
+        _ = workspace.CreateFile(Path.Combine("AppData", "Roaming", "Zoom", "databases", "zoom.sqlite"), 512, DateTime.UtcNow.AddDays(-10));
+        var analyzer = new DeepSpaceAnalyzer(
+            new ProtectedPathPolicy([]),
+            [
+                new DeepSpaceAnalyzer.ReviewOnlyAreaDefinition(
+                    "cp.s2.zoom-appdata",
+                    "Zoom app data (analysis-only evidence)",
+                    zoomRoot,
+                    "Zoom app data may include logs, cache, meeting diagnostics, and app state. ClearPilot reports size only for evidence and does not clean Zoom data in v0.4.",
+                    "Review only. Keep recordings, account/session data, settings, and databases unchanged unless Zoom guidance explicitly recommends maintenance.",
+                    DeepSpaceItemType.SystemManagedWindowsArea)
+            ]);
+
+        var result = analyzer.Analyze(
+            new DeepSpaceAnalysisOptions
+            {
+                RootPaths = [zoomRoot],
+                LargeFileThresholdBytes = long.MaxValue,
+                LargeFolderThresholdBytes = long.MaxValue,
+                FileTypeSummaryThresholdBytes = long.MaxValue,
+                MaxDepth = 1,
+                MaxResults = 20
+            },
+            DateTimeOffset.UtcNow);
+        var item = Assert.Single(result, candidate => candidate.Path.Equals(zoomRoot, StringComparison.OrdinalIgnoreCase));
+        var decision = CleanupDecisionAdvisor.ForDeepSpaceItem(item, RecommendationAdvisor.ForDeepSpaceItem(item));
+
+        Assert.Equal(CleanupDecision.AnalysisOnlyDoNotClean, decision.Decision);
+        Assert.Equal(RiskLevel.S2ReviewRequired, item.RiskLevel);
+        Assert.DoesNotContain(result, candidate => candidate.Path.Contains("recordings", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(result, candidate => candidate.Path.Contains("session", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(result, candidate => candidate.Path.Contains("account", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(result, candidate => candidate.Path.Contains("settings", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(result, candidate => candidate.Path.Contains("database", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void DeepSpace_DefaultRoots_ExcludePersonalLibraries()
     {
         var options = DeepSpaceAnalyzer.CreateDefaultOptions();

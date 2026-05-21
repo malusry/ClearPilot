@@ -588,6 +588,18 @@ public sealed class RuleCatalogTests
     }
 
     [Fact]
+    public void ZoomProfile_NotInRuleCatalogS0OrS1()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var rules = RuleCatalog.CreateDefault(paths);
+
+        Assert.DoesNotContain(rules, rule => rule.RuleId.Contains("zoom", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(
+            rules.SelectMany(rule => rule.RootPaths),
+            root => root.Contains(Path.Combine("Zoom"), StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void AppProfilesV1_Discord_CoverageIncludesExactCacheLogRoots()
     {
         var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");

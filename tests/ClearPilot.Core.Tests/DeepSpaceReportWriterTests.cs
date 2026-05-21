@@ -70,6 +70,43 @@ public sealed class DeepSpaceReportWriterTests
     }
 
     [Fact]
+    public void ZoomProfile_ReportStatesReadOnlyEvidence()
+    {
+        var result = new DeepSpaceAnalysisResult(
+            [
+                new DeepSpaceItem(
+                    DeepSpaceItemType.SystemManagedWindowsArea,
+                    "C:\\Users\\Example\\AppData\\Roaming\\Zoom",
+                    256L * 1024 * 1024,
+                    new DateTimeOffset(2026, 5, 18, 8, 30, 0, TimeSpan.Zero),
+                    RiskLevel.S2ReviewRequired,
+                    "Zoom app data may include logs, cache, meeting diagnostics, and app state. ClearPilot reports size only for evidence and does not clean Zoom data in v0.4.",
+                    "Review only. Keep recordings, account/session data, settings, and databases unchanged unless Zoom guidance explicitly recommends maintenance.",
+                    DeepSpaceAdviceKey.WindowsSystemManagedArea,
+                    "cp.s2.zoom-appdata",
+                    "cp.s2.zoom-appdata",
+                    "Zoom app data (analysis-only evidence)")
+            ],
+            new DeepSpaceAnalysisSummary(
+                ScannedRootCount: 1,
+                ScannedDirectoryCount: 1,
+                ScannedFileCount: 4,
+                FindingCount: 1,
+                FindingBytes: 256L * 1024 * 1024));
+
+        var report = DeepSpaceReportWriter.Render(
+            result,
+            ["C:\\Users\\Example\\AppData\\Roaming\\Zoom"],
+            Language.English,
+            new DateTimeOffset(2026, 5, 21, 12, 0, 0, TimeSpan.Zero));
+
+        Assert.Contains("Zoom", report, StringComparison.Ordinal);
+        Assert.Contains("Zoom app data may include logs, cache, meeting diagnostics, and app state.", report, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("does not clean Zoom data in v0.4", report, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Analysis only.", report, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void ReportsV2_ZhCn_UsesReadableSafetyLabels()
     {
         var report = RenderReport(Language.SimplifiedChinese);

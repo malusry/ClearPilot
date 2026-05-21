@@ -854,6 +854,7 @@ public sealed class DeepSpaceAnalyzer
         var windowsRoot = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
         var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
         var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
         var windowsDriveRoot = string.IsNullOrWhiteSpace(windowsRoot)
@@ -902,6 +903,24 @@ public sealed class DeepSpaceAnalyzer
             "cp.s2.windows-old",
             "Windows.old folder (analysis-only)",
             CombineIfBaseProvided(windowsDriveRoot, "Windows.old"));
+
+        AddReviewOnlyDefinitionIfProvided(
+            definitions,
+            "cp.s2.zoom-appdata",
+            "Zoom app data (analysis-only evidence)",
+            CombineIfBaseProvided(appData, "Zoom"),
+            DeepSpaceItemType.SystemManagedWindowsArea,
+            "Zoom app data may include logs, cache, meeting diagnostics, and app state. ClearPilot reports size only for evidence and does not clean Zoom data in v0.4.",
+            "Review only. Keep recordings, account/session data, settings, and databases unchanged unless Zoom guidance explicitly recommends maintenance.");
+
+        AddReviewOnlyDefinitionIfProvided(
+            definitions,
+            "cp.s2.zoom-localappdata",
+            "Zoom local app data (analysis-only evidence)",
+            CombineIfBaseProvided(localAppData, "Zoom"),
+            DeepSpaceItemType.SystemManagedWindowsArea,
+            "Zoom local data may include logs, cache, meeting diagnostics, and app state. ClearPilot reports size only for evidence and does not clean Zoom data in v0.4.",
+            "Review only. Keep recordings, account/session data, settings, and databases unchanged unless Zoom guidance explicitly recommends maintenance.");
 
         var steamRoots = GetSteamLauncherRoots(localAppData, programFiles, programFilesX86);
         foreach (var steamRoot in steamRoots)

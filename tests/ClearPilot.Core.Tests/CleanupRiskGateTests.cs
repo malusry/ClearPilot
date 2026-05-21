@@ -337,6 +337,31 @@ public sealed class CleanupRiskGateTests
                 || root.EndsWith("Downloads", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Fact]
+    public void ZoomProfile_NotInQuickSafeOrRecommendedCleanup()
+    {
+        var rules = RuleCatalog.CreateDefault(new EnvironmentPaths(
+            @"C:\Users\tester\AppData\Local\Temp",
+            @"C:\Users\tester\AppData\Local",
+            @"C:\Users\tester",
+            @"C:\Windows",
+            @"C:\ProgramData",
+            @"C:\Program Files",
+            @"C:\Program Files (x86)"));
+
+        var quickRules = rules.Where(rule => rule.RiskLevel == RiskLevel.S0VeryLowRisk).ToArray();
+        var recommendedRules = rules.Where(rule => rule.RiskLevel == RiskLevel.S1LowRisk).ToArray();
+
+        Assert.NotEmpty(quickRules);
+        Assert.NotEmpty(recommendedRules);
+        Assert.DoesNotContain(
+            quickRules.SelectMany(rule => rule.RootPaths),
+            root => root.Contains(Path.Combine("Zoom"), StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(
+            recommendedRules.SelectMany(rule => rule.RootPaths),
+            root => root.Contains(Path.Combine("Zoom"), StringComparison.OrdinalIgnoreCase));
+    }
+
     private static QuickSafeCleaner CreateQuickCleaner(string logPath)
     {
         var protectedPathPolicy = new ProtectedPathPolicy([]);
