@@ -320,67 +320,64 @@ public static class RuleCatalog
             TimeSpan.FromDays(7),
             "Graphics drivers and DirectX can recreate shader caches. Cleaning them may cause slower first launches or stutter while shaders rebuild."));
 
-        AddIfPathProvided(rules, Path.Combine(paths.LocalAppData, "NuGet", "v3-cache"), root => new CleanupRule(
+        AddIfAnyRootProvided(rules, GetNuGetHttpAndPluginCacheRoots(paths), roots => new CleanupRule(
             "cp.s1.nuget-http-cache",
-            "NuGet HTTP cache",
+            "NuGet HTTP and plugin caches",
             RiskLevel.S1LowRisk,
-            [root],
+            roots,
             ["*"],
             [],
-            TimeSpan.FromDays(1),
-            "NuGet can recreate this download cache. Cleaning it may require packages to be downloaded again."));
+            TimeSpan.FromDays(7),
+            "NuGet can recreate HTTP and plugin caches. Cleaning may require network downloads for restore operations."));
 
-        AddIfPathProvided(rules, Path.Combine(paths.LocalAppData, "npm-cache"), root => new CleanupRule(
+        AddIfAnyRootProvided(rules, GetNpmCacheRoots(paths), roots => new CleanupRule(
             "cp.s1.npm-cache",
             "npm cache",
             RiskLevel.S1LowRisk,
-            [root],
+            roots,
             ["*"],
             [],
-            TimeSpan.FromDays(1),
+            TimeSpan.FromDays(7),
             "npm can recreate this package cache. Cleaning it may require packages to be downloaded again."));
 
-        AddIfPathProvided(rules, Path.Combine(paths.LocalAppData, "Yarn", "Cache"), root => new CleanupRule(
+        AddIfAnyRootProvided(rules, GetYarnCacheRoots(paths), roots => new CleanupRule(
             "cp.s1.yarn-cache",
             "Yarn cache",
             RiskLevel.S1LowRisk,
-            [root],
+            roots,
             ["*"],
             [],
-            TimeSpan.FromDays(1),
+            TimeSpan.FromDays(7),
             "Yarn can recreate this package cache. Cleaning it may require packages to be downloaded again."));
 
-        AddIfPathProvided(rules, Path.Combine(paths.LocalAppData, "pnpm", "store"), root => new CleanupRule(
+        AddIfAnyRootProvided(rules, GetPnpmStoreRoots(paths), roots => new CleanupRule(
             "cp.s1.pnpm-store",
             "pnpm store cache",
             RiskLevel.S1LowRisk,
-            [root],
+            roots,
             ["*"],
             [],
-            TimeSpan.FromDays(1),
+            TimeSpan.FromDays(7),
             "pnpm can recreate this package store. Cleaning it may require packages to be downloaded again."));
 
-        AddIfPathProvided(rules, Path.Combine(paths.LocalAppData, "pip", "Cache"), root => new CleanupRule(
+        AddIfAnyRootProvided(rules, GetPipCacheRoots(paths), roots => new CleanupRule(
             "cp.s1.pip-cache",
             "pip cache",
             RiskLevel.S1LowRisk,
-            [
-                root,
-                Path.Combine(paths.UserProfile, ".cache", "pip")
-            ],
+            roots,
             ["*"],
             [],
-            TimeSpan.FromDays(1),
+            TimeSpan.FromDays(7),
             "pip can recreate this package cache. Cleaning it may require packages to be downloaded again."));
 
-        AddIfPathProvided(rules, Path.Combine(paths.LocalAppData, "Composer"), root => new CleanupRule(
+        AddIfAnyRootProvided(rules, GetComposerCacheRoots(paths), roots => new CleanupRule(
             "cp.s1.composer-cache",
             "Composer cache",
             RiskLevel.S1LowRisk,
-            [root],
+            roots,
             ["*"],
             ["vendor"],
-            TimeSpan.FromDays(1),
+            TimeSpan.FromDays(7),
             "Composer can recreate this package cache. Cleaning it may require packages to be downloaded again."));
 
         AddIfAnyRootProvided(rules, GetGoCacheRoots(paths), roots => new CleanupRule(
@@ -390,7 +387,7 @@ public static class RuleCatalog
             roots,
             ["*"],
             [],
-            TimeSpan.FromDays(1),
+            TimeSpan.FromDays(7),
             "Go can recreate build and module download caches. Cleaning them may slow future builds or require module downloads."));
 
         AddIfPathProvided(rules, Path.Combine(paths.UserProfile, ".cargo", "registry", "cache"), root => new CleanupRule(
@@ -400,7 +397,7 @@ public static class RuleCatalog
             [root],
             ["*"],
             [],
-            TimeSpan.FromDays(7),
+            TimeSpan.FromDays(14),
             "Cargo can recreate downloaded registry package archives. Cleaning them may slow future builds."));
 
         AddIfPathProvided(rules, Path.Combine(paths.UserProfile, ".cargo", "git", "db"), root => new CleanupRule(
@@ -410,17 +407,17 @@ public static class RuleCatalog
             [root],
             ["*"],
             [],
-            TimeSpan.FromDays(7),
+            TimeSpan.FromDays(14),
             "Cargo can recreate git dependency caches. Cleaning them may slow future builds."));
 
-        AddIfPathProvided(rules, Path.Combine(paths.UserProfile, ".gradle", "caches", "modules-2", "files-2.1"), root => new CleanupRule(
+        AddIfAnyRootProvided(rules, GetGradleCacheRoots(paths.UserProfile), roots => new CleanupRule(
             "cp.s1.gradle-dependency-cache",
             "Gradle dependency cache",
             RiskLevel.S1LowRisk,
-            [root],
+            roots,
             ["*"],
             [],
-            TimeSpan.FromDays(7),
+            TimeSpan.FromDays(14),
             "Gradle can recreate dependency caches. Cleaning them may slow future builds."));
 
         AddIfPathProvided(rules, Path.Combine(paths.UserProfile, ".m2", "repository"), root => new CleanupRule(
@@ -443,7 +440,7 @@ public static class RuleCatalog
             TimeSpan.FromDays(30),
             "NuGet package archives can be downloaded again. Cleaning them may slow future builds."));
 
-        AddIfAnyRootProvided(rules, GetDenoCacheRoots(paths.LocalAppData), roots => new CleanupRule(
+        AddIfAnyRootProvided(rules, GetDenoCacheRoots(paths.LocalAppData, paths.UserProfile), roots => new CleanupRule(
             "cp.s1.deno-cache",
             "Deno cache",
             RiskLevel.S1LowRisk,
@@ -757,7 +754,75 @@ public static class RuleCatalog
         return
         [
             Path.Combine(paths.LocalAppData, "go-build"),
+            Path.Combine(paths.UserProfile, "go", "pkg", "mod", "cache"),
             Path.Combine(paths.UserProfile, "go", "pkg", "mod", "cache", "download")
+        ];
+    }
+
+    private static IReadOnlyList<string> GetNpmCacheRoots(EnvironmentPaths paths)
+    {
+        return
+        [
+            Path.Combine(paths.LocalAppData, "npm-cache"),
+            Path.Combine(paths.UserProfile, "AppData", "Roaming", "npm-cache"),
+            Path.Combine(paths.UserProfile, ".npm")
+        ];
+    }
+
+    private static IReadOnlyList<string> GetPnpmStoreRoots(EnvironmentPaths paths)
+    {
+        return
+        [
+            Path.Combine(paths.LocalAppData, "pnpm", "store"),
+            Path.Combine(paths.LocalAppData, "pnpm-store"),
+            Path.Combine(paths.UserProfile, ".pnpm-store")
+        ];
+    }
+
+    private static IReadOnlyList<string> GetYarnCacheRoots(EnvironmentPaths paths)
+    {
+        return
+        [
+            Path.Combine(paths.LocalAppData, "Yarn", "Cache"),
+            Path.Combine(paths.UserProfile, ".cache", "yarn")
+        ];
+    }
+
+    private static IReadOnlyList<string> GetPipCacheRoots(EnvironmentPaths paths)
+    {
+        return
+        [
+            Path.Combine(paths.LocalAppData, "pip", "Cache"),
+            Path.Combine(paths.UserProfile, ".cache", "pip")
+        ];
+    }
+
+    private static IReadOnlyList<string> GetComposerCacheRoots(EnvironmentPaths paths)
+    {
+        return
+        [
+            Path.Combine(paths.UserProfile, "AppData", "Roaming", "Composer", "cache"),
+            Path.Combine(paths.LocalAppData, "Composer", "cache"),
+            Path.Combine(paths.UserProfile, ".composer", "cache")
+        ];
+    }
+
+    private static IReadOnlyList<string> GetGradleCacheRoots(string userProfile)
+    {
+        return
+        [
+            Path.Combine(userProfile, ".gradle", "caches", "modules-2", "files-2.1"),
+            Path.Combine(userProfile, ".gradle", "caches", "journal-1")
+        ];
+    }
+
+    private static IReadOnlyList<string> GetNuGetHttpAndPluginCacheRoots(EnvironmentPaths paths)
+    {
+        return
+        [
+            Path.Combine(paths.LocalAppData, "NuGet", "v3-cache"),
+            Path.Combine(paths.LocalAppData, "NuGet", "Cache"),
+            Path.Combine(paths.LocalAppData, "NuGet", "plugins-cache")
         ];
     }
 
@@ -971,14 +1036,15 @@ public static class RuleCatalog
         ];
     }
 
-    private static IReadOnlyList<string> GetDenoCacheRoots(string localAppData)
+    private static IReadOnlyList<string> GetDenoCacheRoots(string localAppData, string userProfile)
     {
         var denoRoot = Path.Combine(localAppData, "deno");
         return
         [
             Path.Combine(denoRoot, "deps"),
             Path.Combine(denoRoot, "gen"),
-            Path.Combine(denoRoot, "npm")
+            Path.Combine(denoRoot, "npm"),
+            Path.Combine(userProfile, ".cache", "deno")
         ];
     }
 

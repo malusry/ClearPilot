@@ -174,6 +174,193 @@ public sealed class RuleCatalogTests
     }
 
     [Fact]
+    public void PackageManagers_AllTargetsAreS1NotS0()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var rulesById = RuleCatalog.CreateDefault(paths).ToDictionary(rule => rule.RuleId, StringComparer.OrdinalIgnoreCase);
+        var packageRuleIds = new[]
+        {
+            "cp.s1.npm-cache",
+            "cp.s1.pnpm-store",
+            "cp.s1.yarn-cache",
+            "cp.s1.nuget-http-cache",
+            "cp.s1.nuget-global-packages",
+            "cp.s1.pip-cache",
+            "cp.s1.cargo-registry-cache",
+            "cp.s1.cargo-git-cache",
+            "cp.s1.gradle-dependency-cache",
+            "cp.s1.maven-repository-cache",
+            "cp.s1.deno-cache",
+            "cp.s1.bun-install-cache",
+            "cp.s1.composer-cache",
+            "cp.s1.go-cache"
+        };
+
+        foreach (var ruleId in packageRuleIds)
+        {
+            var rule = Assert.Contains(ruleId, rulesById);
+            Assert.Equal(RiskLevel.S1LowRisk, rule.RiskLevel);
+            Assert.NotEqual(RiskLevel.S0VeryLowRisk, rule.RiskLevel);
+        }
+    }
+
+    [Fact]
+    public void PackageManagers_UserLevelCacheRootsCovered()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var rulesById = RuleCatalog.CreateDefault(paths).ToDictionary(rule => rule.RuleId, StringComparer.OrdinalIgnoreCase);
+
+        Assert.Contains(Path.Combine(paths.LocalAppData, "npm-cache"), rulesById["cp.s1.npm-cache"].RootPaths, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(Path.Combine(paths.UserProfile, "AppData", "Roaming", "npm-cache"), rulesById["cp.s1.npm-cache"].RootPaths, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(Path.Combine(paths.UserProfile, ".npm"), rulesById["cp.s1.npm-cache"].RootPaths, StringComparer.OrdinalIgnoreCase);
+
+        Assert.Contains(Path.Combine(paths.LocalAppData, "pnpm-store"), rulesById["cp.s1.pnpm-store"].RootPaths, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(Path.Combine(paths.UserProfile, ".pnpm-store"), rulesById["cp.s1.pnpm-store"].RootPaths, StringComparer.OrdinalIgnoreCase);
+
+        Assert.Contains(Path.Combine(paths.LocalAppData, "Yarn", "Cache"), rulesById["cp.s1.yarn-cache"].RootPaths, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(Path.Combine(paths.UserProfile, ".cache", "yarn"), rulesById["cp.s1.yarn-cache"].RootPaths, StringComparer.OrdinalIgnoreCase);
+
+        Assert.Contains(Path.Combine(paths.LocalAppData, "NuGet", "v3-cache"), rulesById["cp.s1.nuget-http-cache"].RootPaths, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(Path.Combine(paths.LocalAppData, "NuGet", "Cache"), rulesById["cp.s1.nuget-http-cache"].RootPaths, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(Path.Combine(paths.LocalAppData, "NuGet", "plugins-cache"), rulesById["cp.s1.nuget-http-cache"].RootPaths, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(Path.Combine(paths.UserProfile, ".nuget", "packages"), rulesById["cp.s1.nuget-global-packages"].RootPaths, StringComparer.OrdinalIgnoreCase);
+
+        Assert.Contains(Path.Combine(paths.LocalAppData, "pip", "Cache"), rulesById["cp.s1.pip-cache"].RootPaths, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(Path.Combine(paths.UserProfile, ".cache", "pip"), rulesById["cp.s1.pip-cache"].RootPaths, StringComparer.OrdinalIgnoreCase);
+
+        Assert.Contains(Path.Combine(paths.UserProfile, ".cargo", "registry", "cache"), rulesById["cp.s1.cargo-registry-cache"].RootPaths, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(Path.Combine(paths.UserProfile, ".cargo", "git", "db"), rulesById["cp.s1.cargo-git-cache"].RootPaths, StringComparer.OrdinalIgnoreCase);
+
+        Assert.Contains(Path.Combine(paths.UserProfile, ".gradle", "caches", "modules-2", "files-2.1"), rulesById["cp.s1.gradle-dependency-cache"].RootPaths, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(Path.Combine(paths.UserProfile, ".gradle", "caches", "journal-1"), rulesById["cp.s1.gradle-dependency-cache"].RootPaths, StringComparer.OrdinalIgnoreCase);
+
+        Assert.Contains(Path.Combine(paths.UserProfile, ".m2", "repository"), rulesById["cp.s1.maven-repository-cache"].RootPaths, StringComparer.OrdinalIgnoreCase);
+
+        Assert.Contains(Path.Combine(paths.LocalAppData, "deno", "deps"), rulesById["cp.s1.deno-cache"].RootPaths, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(Path.Combine(paths.UserProfile, ".cache", "deno"), rulesById["cp.s1.deno-cache"].RootPaths, StringComparer.OrdinalIgnoreCase);
+
+        Assert.Contains(Path.Combine(paths.UserProfile, ".bun", "install", "cache"), rulesById["cp.s1.bun-install-cache"].RootPaths, StringComparer.OrdinalIgnoreCase);
+
+        Assert.Contains(Path.Combine(paths.UserProfile, "AppData", "Roaming", "Composer", "cache"), rulesById["cp.s1.composer-cache"].RootPaths, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(Path.Combine(paths.LocalAppData, "Composer", "cache"), rulesById["cp.s1.composer-cache"].RootPaths, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(Path.Combine(paths.UserProfile, ".composer", "cache"), rulesById["cp.s1.composer-cache"].RootPaths, StringComparer.OrdinalIgnoreCase);
+
+        Assert.Contains(Path.Combine(paths.LocalAppData, "go-build"), rulesById["cp.s1.go-cache"].RootPaths, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(Path.Combine(paths.UserProfile, "go", "pkg", "mod", "cache"), rulesById["cp.s1.go-cache"].RootPaths, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void PackageManagers_ProjectLocalDependenciesExcluded()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var packageRules = RuleCatalog.CreateDefault(paths)
+            .Where(rule => rule.RuleId.StartsWith("cp.s1.", StringComparison.OrdinalIgnoreCase) && (
+                rule.RuleId.Contains("npm", StringComparison.OrdinalIgnoreCase)
+                || rule.RuleId.Contains("pnpm", StringComparison.OrdinalIgnoreCase)
+                || rule.RuleId.Contains("yarn", StringComparison.OrdinalIgnoreCase)
+                || rule.RuleId.Contains("nuget", StringComparison.OrdinalIgnoreCase)
+                || rule.RuleId.Contains("pip", StringComparison.OrdinalIgnoreCase)
+                || rule.RuleId.Contains("cargo", StringComparison.OrdinalIgnoreCase)
+                || rule.RuleId.Contains("gradle", StringComparison.OrdinalIgnoreCase)
+                || rule.RuleId.Contains("maven", StringComparison.OrdinalIgnoreCase)
+                || rule.RuleId.Contains("deno", StringComparison.OrdinalIgnoreCase)
+                || rule.RuleId.Contains("bun", StringComparison.OrdinalIgnoreCase)
+                || rule.RuleId.Contains("composer", StringComparison.OrdinalIgnoreCase)
+                || rule.RuleId.Contains("go-cache", StringComparison.OrdinalIgnoreCase)))
+            .ToArray();
+
+        var forbiddenSegments = new[]
+        {
+            "node_modules", ".venv", "venv", "env", "vendor", "target", "bin", "obj", ".next", "dist", "build", "coverage", ".terraform"
+        };
+
+        Assert.NotEmpty(packageRules);
+        foreach (var rootPath in packageRules.SelectMany(rule => rule.RootPaths))
+        {
+            foreach (var forbiddenSegment in forbiddenSegments)
+            {
+                Assert.DoesNotContain(
+                    $"{Path.DirectorySeparatorChar}{forbiddenSegment}{Path.DirectorySeparatorChar}",
+                    rootPath,
+                    StringComparison.OrdinalIgnoreCase);
+                Assert.False(
+                    rootPath.EndsWith($"{Path.DirectorySeparatorChar}{forbiddenSegment}", StringComparison.OrdinalIgnoreCase),
+                    $"Package cache root should not point to project-local folder: {rootPath}");
+            }
+        }
+    }
+
+    [Fact]
+    public void PackageManagers_AgeThresholdsAreConservative()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var rulesById = RuleCatalog.CreateDefault(paths).ToDictionary(rule => rule.RuleId, StringComparer.OrdinalIgnoreCase);
+
+        Assert.Equal(TimeSpan.FromDays(30), rulesById["cp.s1.maven-repository-cache"].MinimumAge);
+        Assert.Equal(TimeSpan.FromDays(30), rulesById["cp.s1.nuget-global-packages"].MinimumAge);
+        Assert.Equal(TimeSpan.FromDays(14), rulesById["cp.s1.cargo-registry-cache"].MinimumAge);
+        Assert.Equal(TimeSpan.FromDays(14), rulesById["cp.s1.cargo-git-cache"].MinimumAge);
+        Assert.Equal(TimeSpan.FromDays(14), rulesById["cp.s1.gradle-dependency-cache"].MinimumAge);
+
+        Assert.Equal(TimeSpan.FromDays(7), rulesById["cp.s1.nuget-http-cache"].MinimumAge);
+        Assert.Equal(TimeSpan.FromDays(7), rulesById["cp.s1.npm-cache"].MinimumAge);
+        Assert.Equal(TimeSpan.FromDays(7), rulesById["cp.s1.pnpm-store"].MinimumAge);
+        Assert.Equal(TimeSpan.FromDays(7), rulesById["cp.s1.yarn-cache"].MinimumAge);
+        Assert.Equal(TimeSpan.FromDays(7), rulesById["cp.s1.pip-cache"].MinimumAge);
+        Assert.Equal(TimeSpan.FromDays(7), rulesById["cp.s1.deno-cache"].MinimumAge);
+        Assert.Equal(TimeSpan.FromDays(7), rulesById["cp.s1.bun-install-cache"].MinimumAge);
+        Assert.Equal(TimeSpan.FromDays(7), rulesById["cp.s1.composer-cache"].MinimumAge);
+        Assert.Equal(TimeSpan.FromDays(7), rulesById["cp.s1.go-cache"].MinimumAge);
+    }
+
+    [Fact]
+    public void PackageManagers_UnknownPackageLikeFoldersAreS2OrNeedsEvidence()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var packageRuleRoots = RuleCatalog.CreateDefault(paths)
+            .Where(rule => rule.RuleId.StartsWith("cp.s1.", StringComparison.OrdinalIgnoreCase))
+            .SelectMany(rule => rule.RootPaths)
+            .ToArray();
+
+        Assert.DoesNotContain(packageRuleRoots, root => root.Contains("packages-cache", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(packageRuleRoots, root => root.Contains("pkg-cache", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(packageRuleRoots, root => root.Contains("unknown-cache", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void PackageManagers_NoBroadUserProfileScanning()
+    {
+        var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");
+        var packageRules = RuleCatalog.CreateDefault(paths)
+            .Where(rule => rule.RuleId is
+                "cp.s1.nuget-http-cache" or
+                "cp.s1.nuget-global-packages" or
+                "cp.s1.npm-cache" or
+                "cp.s1.yarn-cache" or
+                "cp.s1.pnpm-store" or
+                "cp.s1.pip-cache" or
+                "cp.s1.composer-cache" or
+                "cp.s1.go-cache" or
+                "cp.s1.cargo-registry-cache" or
+                "cp.s1.cargo-git-cache" or
+                "cp.s1.gradle-dependency-cache" or
+                "cp.s1.maven-repository-cache" or
+                "cp.s1.deno-cache" or
+                "cp.s1.bun-install-cache")
+            .ToArray();
+
+        Assert.NotEmpty(packageRules);
+        foreach (var rootPath in packageRules.SelectMany(rule => rule.RootPaths))
+        {
+            Assert.True(
+                rootPath.StartsWith(paths.LocalAppData, StringComparison.OrdinalIgnoreCase)
+                || rootPath.StartsWith(paths.UserProfile, StringComparison.OrdinalIgnoreCase),
+                $"Unexpected broad root outside user scope: {rootPath}");
+            Assert.NotEqual(paths.UserProfile, rootPath);
+        }
+    }
+
+    [Fact]
     public void DefaultCatalogIncludesConservativeApplicationCacheRules()
     {
         var paths = new EnvironmentPaths(@"C:\Temp", @"C:\Users\tester\AppData\Local", @"C:\Users\tester");

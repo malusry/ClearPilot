@@ -118,6 +118,40 @@ public sealed class RecommendationAdvisorTests
         }
     }
 
+    [Fact]
+    public void PackageManagers_ImpactTextMentionsRedownloadOrRebuild()
+    {
+        foreach (var ruleId in new[]
+        {
+            "cp.s1.nuget-http-cache",
+            "cp.s1.nuget-global-packages",
+            "cp.s1.npm-cache",
+            "cp.s1.pnpm-store",
+            "cp.s1.yarn-cache",
+            "cp.s1.pip-cache",
+            "cp.s1.cargo-registry-cache",
+            "cp.s1.cargo-git-cache",
+            "cp.s1.gradle-dependency-cache",
+            "cp.s1.maven-repository-cache",
+            "cp.s1.deno-cache",
+            "cp.s1.bun-install-cache",
+            "cp.s1.composer-cache",
+            "cp.s1.go-cache"
+        })
+        {
+            var advice = RecommendationAdvisor.ForRule(CreateRule(ruleId, RiskLevel.S1LowRisk));
+            Assert.Equal(RecommendationLevel.Optional, advice.Recommendation);
+            Assert.Equal("advice.package-manager-cache", advice.AdviceKey);
+            Assert.True(
+                advice.Reason.Contains("rebuild", StringComparison.OrdinalIgnoreCase)
+                || advice.Reason.Contains("rebuilt", StringComparison.OrdinalIgnoreCase)
+                || advice.Reason.Contains("recreate", StringComparison.OrdinalIgnoreCase),
+                $"Reason should mention rebuild/recreate semantics for {ruleId}: {advice.Reason}");
+            Assert.Contains("redownload", advice.PossibleImpact, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("network", advice.PossibleImpact, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
     private static CleanupRule CreateRule(string id, RiskLevel riskLevel)
     {
         return new CleanupRule(

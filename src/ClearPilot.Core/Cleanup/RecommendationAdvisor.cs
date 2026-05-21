@@ -174,6 +174,27 @@ public static class RecommendationAdvisor
                 "Clean only after review and explicit confirmation.",
                 "Only allowlisted files in completed diagnostic subpaths are eligible; process guard and safety gates still apply."),
 
+            "cp.s1.nuget-http-cache" or
+            "cp.s1.nuget-global-packages" or
+            "cp.s1.npm-cache" or
+            "cp.s1.pnpm-store" or
+            "cp.s1.yarn-cache" or
+            "cp.s1.pip-cache" or
+            "cp.s1.cargo-registry-cache" or
+            "cp.s1.cargo-git-cache" or
+            "cp.s1.gradle-dependency-cache" or
+            "cp.s1.maven-repository-cache" or
+            "cp.s1.deno-cache" or
+            "cp.s1.bun-install-cache" or
+            "cp.s1.composer-cache" or
+            "cp.s1.go-cache" => new TargetAdvice(
+                RecommendationLevel.Optional,
+                "advice.package-manager-cache",
+                "User-level package manager cache data can be rebuilt and is safe to clean with confirmation.",
+                "Future installs or builds may need package redownloads, cache rebuilds, and network access; offline workflows can be affected.",
+                "Clean when you need space and can tolerate slower first restore/build operations.",
+                "Project-local dependency folders and build outputs are not part of these rules."),
+
             _ => DefaultForRisk(rule.RiskLevel)
         };
 

@@ -362,6 +362,65 @@ public sealed class CleanupRiskGateTests
             root => root.Contains(Path.Combine("Zoom"), StringComparison.OrdinalIgnoreCase));
     }
 
+    [Fact]
+    public void PackageManagers_QuickSafeDoesNotIncludePackageCaches()
+    {
+        var rules = RuleCatalog.CreateDefault(new EnvironmentPaths(
+            @"C:\Users\tester\AppData\Local\Temp",
+            @"C:\Users\tester\AppData\Local",
+            @"C:\Users\tester",
+            @"C:\Windows",
+            @"C:\ProgramData",
+            @"C:\Program Files",
+            @"C:\Program Files (x86)"));
+
+        var quickRules = rules.Where(rule => rule.RiskLevel == RiskLevel.S0VeryLowRisk).ToArray();
+        Assert.NotEmpty(quickRules);
+        Assert.DoesNotContain(
+            quickRules.SelectMany(rule => rule.RootPaths),
+            root =>
+                root.Contains("npm", StringComparison.OrdinalIgnoreCase)
+                || root.Contains("pnpm", StringComparison.OrdinalIgnoreCase)
+                || root.Contains("yarn", StringComparison.OrdinalIgnoreCase)
+                || root.Contains("nuget", StringComparison.OrdinalIgnoreCase)
+                || root.Contains("pip", StringComparison.OrdinalIgnoreCase)
+                || root.Contains("cargo", StringComparison.OrdinalIgnoreCase)
+                || root.Contains(".gradle", StringComparison.OrdinalIgnoreCase)
+                || root.Contains(".m2", StringComparison.OrdinalIgnoreCase)
+                || root.Contains("deno", StringComparison.OrdinalIgnoreCase)
+                || root.Contains(".bun", StringComparison.OrdinalIgnoreCase)
+                || root.Contains("composer", StringComparison.OrdinalIgnoreCase)
+                || root.Contains("go-build", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void PackageManagers_RecommendedCleanupRequiresConfirmation()
+    {
+        using var workspace = TestWorkspace.Create();
+        var npmCacheRoot = workspace.CreateDirectory(Path.Combine("LocalAppData", "npm-cache"));
+        var npmCacheFile = workspace.CreateOldFile(Path.Combine("LocalAppData", "npm-cache", "entry.bin"), "cache-data");
+        var service = CreateRecommendedService(workspace.LogsPath);
+        var rule = new CleanupRule(
+            "cp.s1.npm-cache",
+            "npm cache",
+            RiskLevel.S1LowRisk,
+            [npmCacheRoot],
+            ["*"],
+            [],
+            TimeSpan.FromDays(7),
+            "npm cache");
+
+        var result = service.Clean(
+            [rule],
+            confirmedByUser: false,
+            dryRun: false,
+            now: DateTimeOffset.UtcNow);
+
+        Assert.True(File.Exists(npmCacheFile));
+        Assert.Equal(0, result.DeletedCount);
+        Assert.Equal(1, result.SkippedCount);
+    }
+
     private static QuickSafeCleaner CreateQuickCleaner(string logPath)
     {
         var protectedPathPolicy = new ProtectedPathPolicy([]);
