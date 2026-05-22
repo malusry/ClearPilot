@@ -125,6 +125,25 @@ No administrator requirement is introduced for v0.4 cleanup flows.
 - Full test suite: 276 passed, 0 failed, 0 skipped
 - Targeted tests: 177 passed, 0 failed, 0 skipped
 
+## Packaging Strategy (Draft)
+
+For v0.4 release preparation, the recommended primary user-facing artifact is:
+
+- `win-x64` self-contained package
+
+Reason:
+
+- framework-dependent publish works, but direct `ClearPilot.exe` launch requires a globally installed .NET runtime
+- self-contained package includes runtime dependencies and runs directly without global .NET installation
+
+Validated local package result:
+
+- output folder: `artifacts\rc\v0.4.0-win-x64-self-contained`
+- file count: `194`
+- total size: `80,886,441 bytes` (~`77.14 MB`)
+
+The larger package size is expected for self-contained distribution.
+
 ## Known Follow-ups
 
 - Clean up `MessageCatalog.DeepAnalysisSuggestedAction` legacy key.

@@ -31,6 +31,10 @@
 
 - Full tests: 276 passed, 0 failed, 0 skipped.
 - Targeted tests: 177 passed, 0 failed, 0 skipped.
+- RC package adjustment validation:
+  - framework-dependent publish works but requires global .NET runtime for direct EXE launch
+  - `win-x64` self-contained publish validated for direct EXE launch without global runtime
+  - validated local self-contained output size: 80,886,441 bytes (~77.14 MB), 194 files
 
 ### Follow-ups
 

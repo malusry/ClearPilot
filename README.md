@@ -35,6 +35,22 @@ To run:
 .\ClearPilot.cmd
 ```
 
+## v0.4 Packaging Status (Draft)
+
+v0.4.0 is not published yet. For release preparation, the current recommended packaging strategy is:
+
+- `win-x64` self-contained package
+- Includes the required .NET runtime
+- Can run `ClearPilot.exe` directly on machines without a globally installed .NET runtime
+
+Validated local RC package (draft validation result):
+
+- Output folder: `artifacts\rc\v0.4.0-win-x64-self-contained`
+- File count: `194`
+- Total size: `80,886,441 bytes` (~`77.14 MB`)
+
+The larger package size is expected for self-contained distribution.
+
 ## Cleanup Modes
 
 ClearPilot separates cleanup into strict risk levels.
