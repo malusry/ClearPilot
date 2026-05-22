@@ -217,6 +217,32 @@ public sealed class RecommendedCleanupCliOutputTests
         Assert.Contains("请输入编号、A", zhOutput, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void RecommendedCleanupCli_UsesFieldLevelColorSemantics()
+    {
+        Assert.Equal(ConsoleColor.DarkCyan, ClearPilot.Cli.ConsolePresentationStyle.GetRecommendedFieldLabelColor());
+        Assert.Equal(ConsoleColor.Cyan, ClearPilot.Cli.ConsolePresentationStyle.GetRecommendedExpectedReclaimColor());
+        Assert.Equal(ConsoleColor.DarkYellow, ClearPilot.Cli.ConsolePresentationStyle.GetRecommendedImpactColor());
+        Assert.Equal(ConsoleColor.Green, ClearPilot.Cli.ConsolePresentationStyle.GetDecisionColor(CleanupDecision.RecommendedToClean));
+        Assert.Equal(ConsoleColor.Yellow, ClearPilot.Cli.ConsolePresentationStyle.GetRecommendedRiskColor(RiskLevel.S1LowRisk));
+    }
+
+    [Fact]
+    public void NoColorOrRedirectedOutput_RemainsReadable()
+    {
+        using var workspace = RecommendedCliTestWorkspace.Create();
+        workspace.CreateRecommendedAndNotRecommendedFixtures();
+
+        var output = workspace.RunRecommendedCleanupCli(Language.English, "2\n0\n\n0\n");
+
+        Assert.Contains("Decision:", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Reason:", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Impact:", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Expected reclaim:", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Risk:", output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("\u001b[", output, StringComparison.Ordinal);
+    }
+
     private static string ExtractRecommendedPrimaryLines(string output)
     {
         var builder = new StringBuilder();

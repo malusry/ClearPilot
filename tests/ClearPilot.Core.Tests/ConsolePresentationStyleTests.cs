@@ -134,4 +134,58 @@ public sealed class ConsolePresentationStyleTests
         Assert.Equal(ConsoleColor.Yellow, ConsolePresentationStyle.GetRecommendedPrimarySafetyColor());
         Assert.Equal(ConsoleColor.DarkGray, ConsolePresentationStyle.GetRecommendedSecondarySafetyColor());
     }
+
+    [Fact]
+    public void ConsolePresentationStyle_FieldLabel_IsDarkCyan()
+    {
+        Assert.Equal(ConsoleColor.DarkCyan, ConsolePresentationStyle.GetFieldLabelColor());
+        Assert.Equal(ConsoleColor.DarkCyan, ConsolePresentationStyle.GetRecommendedFieldLabelColor());
+        Assert.Equal(ConsoleColor.DarkCyan, ConsolePresentationStyle.GetDeepSpaceFieldLabelColor());
+    }
+
+    [Fact]
+    public void ConsolePresentationStyle_ExpectedReclaim_IsCyan()
+    {
+        Assert.Equal(ConsoleColor.Cyan, ConsolePresentationStyle.GetRecommendedExpectedReclaimColor());
+        Assert.Equal(ConsoleColor.Cyan, ConsolePresentationStyle.GetDeepSpaceSizeColor());
+    }
+
+    [Fact]
+    public void ConsolePresentationStyle_Impact_IsDarkYellow()
+    {
+        Assert.Equal(ConsoleColor.DarkYellow, ConsolePresentationStyle.GetRecommendedImpactColor());
+    }
+
+    [Fact]
+    public void ConsolePresentationStyle_DecisionColors_AreSemantic()
+    {
+        Assert.Equal(ConsoleColor.Green, ConsolePresentationStyle.GetDecisionColor(CleanupDecision.RecommendedToClean));
+        Assert.Equal(ConsoleColor.DarkYellow, ConsolePresentationStyle.GetDecisionColor(CleanupDecision.NotRecommendedToClean));
+        Assert.Equal(ConsoleColor.Cyan, ConsolePresentationStyle.GetDecisionColor(CleanupDecision.AnalysisOnlyDoNotClean));
+        Assert.Equal(ConsoleColor.Red, ConsolePresentationStyle.GetDecisionColor(CleanupDecision.Blocked));
+    }
+
+    [Fact]
+    public void ConsolePresentationStyle_RiskColors_AreSemantic()
+    {
+        Assert.Equal(ConsoleColor.Yellow, ConsolePresentationStyle.GetRiskColor(RiskLevel.S1LowRisk));
+        Assert.Equal(ConsoleColor.DarkMagenta, ConsolePresentationStyle.GetRiskColor(RiskLevel.S2ReviewRequired));
+        Assert.Equal(ConsoleColor.Red, ConsolePresentationStyle.GetRiskColor(RiskLevel.S3DoNotCleanAutomatically));
+        Assert.Equal(ConsoleColor.Red, ConsolePresentationStyle.GetRiskColor(RiskLevel.Blocked));
+    }
+
+    [Fact]
+    public void ConsolePresentationStyle_Path_IsMuted()
+    {
+        Assert.Equal(ConsoleColor.DarkGray, ConsolePresentationStyle.GetPathValueColor());
+        Assert.Equal(ConsoleColor.DarkGray, ConsolePresentationStyle.GetDeepSpacePathColor());
+    }
+
+    [Fact]
+    public void ConsolePresentationStyle_DeepSpace_SizeIsNotGreen()
+    {
+        Assert.Equal(ConsoleColor.Cyan, ConsolePresentationStyle.GetDeepSpaceSizeColor());
+        Assert.NotEqual(ConsoleColor.Green, ConsolePresentationStyle.GetDeepSpaceSizeColor());
+        Assert.NotEqual(ConsoleColor.DarkGreen, ConsolePresentationStyle.GetDeepSpaceSizeColor());
+    }
 }

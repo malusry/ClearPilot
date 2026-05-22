@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using ClearPilot.Core.Cleanup;
 using ClearPilot.Core.Localization;
 using ClearPilot.Core.Settings;
 using Xunit;
@@ -98,6 +99,18 @@ public sealed class DeepSpaceCliRenderingTests
         Assert.DoesNotContain("涓", output, StringComparison.Ordinal);
         Assert.DoesNotContain("璺", output, StringComparison.Ordinal);
         Assert.DoesNotContain("緞", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DeepSpaceCli_UsesFieldLevelColorSemantics()
+    {
+        Assert.Equal(ConsoleColor.DarkCyan, ClearPilot.Cli.ConsolePresentationStyle.GetDeepSpaceFieldLabelColor());
+        Assert.Equal(ConsoleColor.Cyan, ClearPilot.Cli.ConsolePresentationStyle.GetDeepSpaceSizeColor());
+        Assert.Equal(ConsoleColor.DarkGray, ClearPilot.Cli.ConsolePresentationStyle.GetDeepSpacePathColor());
+        Assert.Equal(ConsoleColor.Cyan, ClearPilot.Cli.ConsolePresentationStyle.GetDecisionColor(CleanupDecision.AnalysisOnlyDoNotClean));
+        Assert.Equal(ConsoleColor.DarkMagenta, ClearPilot.Cli.ConsolePresentationStyle.GetRiskColor(RiskLevel.S2ReviewRequired));
+        Assert.Equal(ConsoleColor.Yellow, ClearPilot.Cli.ConsolePresentationStyle.GetDeepSpaceBoundaryColor(CleanupDecision.AnalysisOnlyDoNotClean));
+        Assert.Equal(ConsoleColor.Red, ClearPilot.Cli.ConsolePresentationStyle.GetDeepSpaceBoundaryColor(CleanupDecision.Blocked));
     }
 
     private sealed class CliTestWorkspace : IDisposable

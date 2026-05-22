@@ -39,6 +39,19 @@ public static class ConsolePresentationStyle
         };
     }
 
+    public static ConsoleColor GetRiskColor(RiskLevel riskLevel)
+    {
+        return riskLevel switch
+        {
+            RiskLevel.S0VeryLowRisk => ConsoleColor.Green,
+            RiskLevel.S1LowRisk => ConsoleColor.Yellow,
+            RiskLevel.S2ReviewRequired => ConsoleColor.DarkMagenta,
+            RiskLevel.S3DoNotCleanAutomatically => ConsoleColor.Red,
+            RiskLevel.Blocked => ConsoleColor.Red,
+            _ => ConsoleColor.Gray
+        };
+    }
+
     public static ConsoleColor GetModeColor(ModeColorRole role)
     {
         return role switch
@@ -143,12 +156,42 @@ public static class ConsolePresentationStyle
 
     public static ConsoleColor GetDeepSpacePathColor()
     {
+        return GetPathValueColor();
+    }
+
+    public static ConsoleColor GetDeepSpaceFieldLabelColor()
+    {
+        return GetFieldLabelColor();
+    }
+
+    public static ConsoleColor GetDeepSpaceInsightColor()
+    {
+        return GetExplanationValueColor();
+    }
+
+    public static ConsoleColor GetDeepSpaceBoundaryColor(CleanupDecision decision)
+    {
+        return decision == CleanupDecision.Blocked ? ConsoleColor.Red : ConsoleColor.Yellow;
+    }
+
+    public static ConsoleColor GetFieldLabelColor()
+    {
+        return ConsoleColor.DarkCyan;
+    }
+
+    public static ConsoleColor GetPathValueColor()
+    {
         return ConsoleColor.DarkGray;
+    }
+
+    public static ConsoleColor GetExplanationValueColor()
+    {
+        return ConsoleColor.White;
     }
 
     public static ConsoleColor GetRecommendedFieldLabelColor()
     {
-        return ConsoleColor.DarkCyan;
+        return GetFieldLabelColor();
     }
 
     public static ConsoleColor GetRecommendedExpectedReclaimColor()
@@ -159,6 +202,16 @@ public static class ConsolePresentationStyle
     public static ConsoleColor GetRecommendedImpactColor()
     {
         return ConsoleColor.DarkYellow;
+    }
+
+    public static ConsoleColor GetRecommendedReasonColor()
+    {
+        return GetExplanationValueColor();
+    }
+
+    public static ConsoleColor GetRecommendedRiskColor(RiskLevel riskLevel)
+    {
+        return GetRiskColor(riskLevel);
     }
 
     public static ConsoleColor GetRecommendedPromptColor()

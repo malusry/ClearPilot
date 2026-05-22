@@ -253,7 +253,7 @@ static void RunRecommendedCleanup(AppSettings settings)
                 CardDetailLine.WithHighlight(
                     $"{GetReasonLabelV46(text)}: ",
                     displayDecisionReason,
-                    Theme.Text,
+                    ConsolePresentationStyle.GetRecommendedReasonColor(),
                     prefixColor: ConsolePresentationStyle.GetRecommendedFieldLabelColor()),
                 CardDetailLine.WithHighlight(
                     $"{GetImpactLabelV46(text)}: ",
@@ -268,7 +268,7 @@ static void RunRecommendedCleanup(AppSettings settings)
                 CardDetailLine.WithHighlight(
                     $"{GetRiskLabelV46(text)}: ",
                     FormatRiskBadge(candidate.RiskLevel),
-                    Theme.Muted,
+                    ConsolePresentationStyle.GetRecommendedRiskColor(candidate.RiskLevel),
                     prefixColor: ConsolePresentationStyle.GetRecommendedFieldLabelColor())
             ],
             GetRiskColor(candidate.RiskLevel));
@@ -1528,15 +1528,7 @@ static string GetDeepSpaceActionHintV45(MessageCatalog text)
 
 static ConsoleColor GetRiskColor(RiskLevel riskLevel)
 {
-    return riskLevel switch
-    {
-        RiskLevel.S0VeryLowRisk => Theme.Success,
-        RiskLevel.S1LowRisk => Theme.Warning,
-        RiskLevel.S2ReviewRequired => Theme.Review,
-        RiskLevel.S3DoNotCleanAutomatically => Theme.Danger,
-        RiskLevel.Blocked => ConsoleColor.DarkRed,
-        _ => Theme.Muted
-    };
+    return ConsolePresentationStyle.GetRiskColor(riskLevel);
 }
 
 static void WriteLineColor(string text, ConsoleColor color)
@@ -2045,28 +2037,28 @@ static void WriteDeepSpaceItems(MessageCatalog text, IReadOnlyList<DeepSpaceItem
                         FormatCleanupDecisionBadgeV46(text, decision.Decision),
                         GetDecisionColorV46(decision.Decision),
                         string.Empty,
-                        prefixColor: Theme.Heading),
+                        prefixColor: ConsolePresentationStyle.GetDeepSpaceFieldLabelColor()),
                     CardDetailLine.WithHighlight(
                         $"{GetRiskLabelV46(text)}: ",
                         FormatRiskBadge(item.RiskLevel),
                         GetRiskColor(item.RiskLevel),
                         string.Empty,
-                        prefixColor: Theme.Heading),
+                        prefixColor: ConsolePresentationStyle.GetDeepSpaceFieldLabelColor()),
                     CardDetailLine.WithHighlight(
                         $"{GetPathLabelV46(text)}: ",
                         item.Path,
                         ConsolePresentationStyle.GetDeepSpacePathColor(),
-                        prefixColor: Theme.Heading),
+                        prefixColor: ConsolePresentationStyle.GetDeepSpaceFieldLabelColor()),
                     CardDetailLine.WithHighlight(
                         $"{GetInsightLabelV46(text)}: ",
                         GetDeepSpaceInsightForDisplayV46(text, item),
-                        Theme.Text,
-                        prefixColor: Theme.Heading),
+                        ConsolePresentationStyle.GetDeepSpaceInsightColor(),
+                        prefixColor: ConsolePresentationStyle.GetDeepSpaceFieldLabelColor()),
                     CardDetailLine.WithHighlight(
                         $"{GetBoundaryLabelV46(text)}: ",
                         GetDeepSpaceBoundaryForDisplayV46(text, item, decision, advice),
-                        Theme.Muted,
-                        prefixColor: Theme.Heading),
+                        ConsolePresentationStyle.GetDeepSpaceBoundaryColor(decision.Decision),
+                        prefixColor: ConsolePresentationStyle.GetDeepSpaceFieldLabelColor()),
                 ],
                 ConsolePresentationStyle.GetDeepSpaceCardColor(),
                 metaColor: ConsolePresentationStyle.GetDeepSpaceSizeColor());
