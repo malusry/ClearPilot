@@ -159,9 +159,34 @@ public static class ConsolePresentationStyle
         return GetPathValueColor();
     }
 
-    public static ConsoleColor GetDeepSpaceFieldLabelColor()
+    public static ConsoleColor GetDeepSpaceDecisionLabelColor(CleanupDecision decision)
     {
-        return GetFieldLabelColor();
+        return decision == CleanupDecision.Blocked ? ConsoleColor.Red : ConsoleColor.Cyan;
+    }
+
+    public static ConsoleColor GetDeepSpaceRiskLabelColor(RiskLevel riskLevel)
+    {
+        return riskLevel switch
+        {
+            RiskLevel.Blocked => ConsoleColor.Red,
+            RiskLevel.S3DoNotCleanAutomatically => ConsoleColor.Red,
+            _ => ConsoleColor.DarkMagenta
+        };
+    }
+
+    public static ConsoleColor GetDeepSpacePathLabelColor()
+    {
+        return ConsoleColor.DarkGray;
+    }
+
+    public static ConsoleColor GetDeepSpaceInsightLabelColor()
+    {
+        return ConsoleColor.White;
+    }
+
+    public static ConsoleColor GetDeepSpaceBoundaryLabelColor(CleanupDecision decision)
+    {
+        return decision == CleanupDecision.Blocked ? ConsoleColor.Red : ConsoleColor.Yellow;
     }
 
     public static ConsoleColor GetDeepSpaceInsightColor()
@@ -189,9 +214,29 @@ public static class ConsolePresentationStyle
         return ConsoleColor.White;
     }
 
-    public static ConsoleColor GetRecommendedFieldLabelColor()
+    public static ConsoleColor GetRecommendedDecisionLabelColor()
     {
-        return GetFieldLabelColor();
+        return ConsoleColor.Green;
+    }
+
+    public static ConsoleColor GetRecommendedReasonLabelColor()
+    {
+        return ConsoleColor.White;
+    }
+
+    public static ConsoleColor GetRecommendedExpectedReclaimLabelColor()
+    {
+        return ConsoleColor.Cyan;
+    }
+
+    public static ConsoleColor GetRecommendedImpactLabelColor()
+    {
+        return ConsoleColor.DarkYellow;
+    }
+
+    public static ConsoleColor GetRecommendedRiskLabelColor()
+    {
+        return ConsoleColor.Yellow;
     }
 
     public static ConsoleColor GetRecommendedExpectedReclaimColor()

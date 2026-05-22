@@ -218,9 +218,13 @@ public sealed class RecommendedCleanupCliOutputTests
     }
 
     [Fact]
-    public void RecommendedCleanupCli_UsesFieldLevelColorSemantics()
+    public void RecommendedCleanupCli_FieldLabelsUseFieldSpecificStyles()
     {
-        Assert.Equal(ConsoleColor.DarkCyan, ClearPilot.Cli.ConsolePresentationStyle.GetRecommendedFieldLabelColor());
+        Assert.Equal(ConsoleColor.Green, ClearPilot.Cli.ConsolePresentationStyle.GetRecommendedDecisionLabelColor());
+        Assert.Equal(ConsoleColor.White, ClearPilot.Cli.ConsolePresentationStyle.GetRecommendedReasonLabelColor());
+        Assert.Equal(ConsoleColor.Cyan, ClearPilot.Cli.ConsolePresentationStyle.GetRecommendedExpectedReclaimLabelColor());
+        Assert.Equal(ConsoleColor.DarkYellow, ClearPilot.Cli.ConsolePresentationStyle.GetRecommendedImpactLabelColor());
+        Assert.Equal(ConsoleColor.Yellow, ClearPilot.Cli.ConsolePresentationStyle.GetRecommendedRiskLabelColor());
         Assert.Equal(ConsoleColor.Cyan, ClearPilot.Cli.ConsolePresentationStyle.GetRecommendedExpectedReclaimColor());
         Assert.Equal(ConsoleColor.DarkYellow, ClearPilot.Cli.ConsolePresentationStyle.GetRecommendedImpactColor());
         Assert.Equal(ConsoleColor.Green, ClearPilot.Cli.ConsolePresentationStyle.GetDecisionColor(CleanupDecision.RecommendedToClean));

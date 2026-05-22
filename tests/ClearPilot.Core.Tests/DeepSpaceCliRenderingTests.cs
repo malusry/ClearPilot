@@ -102,9 +102,13 @@ public sealed class DeepSpaceCliRenderingTests
     }
 
     [Fact]
-    public void DeepSpaceCli_UsesFieldLevelColorSemantics()
+    public void DeepSpaceCli_FieldLabelsUseFieldSpecificStyles()
     {
-        Assert.Equal(ConsoleColor.DarkCyan, ClearPilot.Cli.ConsolePresentationStyle.GetDeepSpaceFieldLabelColor());
+        Assert.Equal(ConsoleColor.Cyan, ClearPilot.Cli.ConsolePresentationStyle.GetDeepSpaceDecisionLabelColor(CleanupDecision.AnalysisOnlyDoNotClean));
+        Assert.Equal(ConsoleColor.DarkMagenta, ClearPilot.Cli.ConsolePresentationStyle.GetDeepSpaceRiskLabelColor(RiskLevel.S2ReviewRequired));
+        Assert.Equal(ConsoleColor.DarkGray, ClearPilot.Cli.ConsolePresentationStyle.GetDeepSpacePathLabelColor());
+        Assert.Equal(ConsoleColor.White, ClearPilot.Cli.ConsolePresentationStyle.GetDeepSpaceInsightLabelColor());
+        Assert.Equal(ConsoleColor.Yellow, ClearPilot.Cli.ConsolePresentationStyle.GetDeepSpaceBoundaryLabelColor(CleanupDecision.AnalysisOnlyDoNotClean));
         Assert.Equal(ConsoleColor.Cyan, ClearPilot.Cli.ConsolePresentationStyle.GetDeepSpaceSizeColor());
         Assert.Equal(ConsoleColor.DarkGray, ClearPilot.Cli.ConsolePresentationStyle.GetDeepSpacePathColor());
         Assert.Equal(ConsoleColor.Cyan, ClearPilot.Cli.ConsolePresentationStyle.GetDecisionColor(CleanupDecision.AnalysisOnlyDoNotClean));

@@ -127,7 +127,11 @@ public sealed class ConsolePresentationStyleTests
         Assert.Equal(ConsoleColor.DarkYellow, ConsolePresentationStyle.GetModeColor(ConsolePresentationStyle.ModeColorRole.RecommendedCleanup));
         Assert.Equal(ConsoleColor.Green, ConsolePresentationStyle.GetDecisionColor(CleanupDecision.RecommendedToClean));
         Assert.Equal(ConsoleColor.DarkYellow, ConsolePresentationStyle.GetDecisionColor(CleanupDecision.NotRecommendedToClean));
-        Assert.Equal(ConsoleColor.DarkCyan, ConsolePresentationStyle.GetRecommendedFieldLabelColor());
+        Assert.Equal(ConsoleColor.Green, ConsolePresentationStyle.GetRecommendedDecisionLabelColor());
+        Assert.Equal(ConsoleColor.White, ConsolePresentationStyle.GetRecommendedReasonLabelColor());
+        Assert.Equal(ConsoleColor.Cyan, ConsolePresentationStyle.GetRecommendedExpectedReclaimLabelColor());
+        Assert.Equal(ConsoleColor.DarkYellow, ConsolePresentationStyle.GetRecommendedImpactLabelColor());
+        Assert.Equal(ConsoleColor.Yellow, ConsolePresentationStyle.GetRecommendedRiskLabelColor());
         Assert.Equal(ConsoleColor.Cyan, ConsolePresentationStyle.GetRecommendedExpectedReclaimColor());
         Assert.Equal(ConsoleColor.DarkYellow, ConsolePresentationStyle.GetRecommendedImpactColor());
         Assert.Equal(ConsoleColor.Cyan, ConsolePresentationStyle.GetRecommendedPromptColor());
@@ -136,11 +140,36 @@ public sealed class ConsolePresentationStyleTests
     }
 
     [Fact]
-    public void ConsolePresentationStyle_FieldLabel_IsDarkCyan()
+    public void ConsolePresentationStyle_DeepSpace_FieldLabelsUseDistinctColors()
     {
-        Assert.Equal(ConsoleColor.DarkCyan, ConsolePresentationStyle.GetFieldLabelColor());
-        Assert.Equal(ConsoleColor.DarkCyan, ConsolePresentationStyle.GetRecommendedFieldLabelColor());
-        Assert.Equal(ConsoleColor.DarkCyan, ConsolePresentationStyle.GetDeepSpaceFieldLabelColor());
+        var decisionLabel = ConsolePresentationStyle.GetDeepSpaceDecisionLabelColor(CleanupDecision.AnalysisOnlyDoNotClean);
+        var riskLabel = ConsolePresentationStyle.GetDeepSpaceRiskLabelColor(RiskLevel.S2ReviewRequired);
+        var pathLabel = ConsolePresentationStyle.GetDeepSpacePathLabelColor();
+        var boundaryLabel = ConsolePresentationStyle.GetDeepSpaceBoundaryLabelColor(CleanupDecision.AnalysisOnlyDoNotClean);
+        var insightLabel = ConsolePresentationStyle.GetDeepSpaceInsightLabelColor();
+
+        Assert.NotEqual(decisionLabel, riskLabel);
+        Assert.NotEqual(riskLabel, pathLabel);
+        Assert.NotEqual(pathLabel, boundaryLabel);
+        Assert.Equal(ConsoleColor.Yellow, boundaryLabel);
+        Assert.Equal(ConsoleColor.DarkGray, pathLabel);
+        Assert.NotEqual(pathLabel, insightLabel);
+    }
+
+    [Fact]
+    public void ConsolePresentationStyle_RecommendedCleanup_FieldLabelsUseDistinctColors()
+    {
+        var decisionLabel = ConsolePresentationStyle.GetRecommendedDecisionLabelColor();
+        var reasonLabel = ConsolePresentationStyle.GetRecommendedReasonLabelColor();
+        var expectedLabel = ConsolePresentationStyle.GetRecommendedExpectedReclaimLabelColor();
+        var impactLabel = ConsolePresentationStyle.GetRecommendedImpactLabelColor();
+        var riskLabel = ConsolePresentationStyle.GetRecommendedRiskLabelColor();
+
+        Assert.NotEqual(decisionLabel, impactLabel);
+        Assert.Equal(ConsoleColor.Cyan, expectedLabel);
+        Assert.Equal(ConsoleColor.DarkYellow, impactLabel);
+        Assert.Equal(ConsoleColor.Yellow, riskLabel);
+        Assert.NotEqual(reasonLabel, impactLabel);
     }
 
     [Fact]
