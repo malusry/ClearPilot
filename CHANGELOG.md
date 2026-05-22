@@ -1,5 +1,44 @@
 # Changelog
 
+## Unreleased - v0.4.0 (Draft, not published)
+
+### Summary
+
+- Pre-release documentation and capability alignment for validated v0.4 behavior.
+- No release tag/publication is implied by this section.
+
+### Highlights
+
+- Quick Safe Clean: S0-only boundary clarified with better summaries.
+- Recommended Cleanup: confirmed-S1-only, conclusion-first fields, safer `A/all` selection, field-specific label/value colors.
+- Deep Space Analysis: read-only/no-delete, simplified cards, Downloads read-only insight, Zoom read-only evidence profile.
+- Reports v2: advisor-style structure with decision classes and explicit BLOCKED finality wording.
+- Conservative S1 coverage expansion for:
+  - App profiles (Discord/Slack/Teams/VS Code/JetBrains)
+  - Package manager caches (npm/pnpm/Yarn/NuGet/pip/Cargo/Gradle/Maven/Deno/Bun/Composer/Go)
+  - Windows user diagnostics (CrashDumps/WER ReportArchive/WER Temp/WER ReportQueue under strict exclusions)
+
+### Safety
+
+- Safety gates and deletion-time controls are unchanged.
+- Quick: S0 only.
+- Recommended: confirmed S1 only.
+- Deep Space: no delete.
+- S2/S3/BLOCKED: non-deletable.
+- System-managed diagnostics and Windows servicing/update internals remain read-only or blocked.
+
+### Validation
+
+- Full tests: 276 passed, 0 failed, 0 skipped.
+- Targeted tests: 177 passed, 0 failed, 0 skipped.
+
+### Follow-ups
+
+- Clean up `MessageCatalog.DeepAnalysisSuggestedAction` legacy key.
+- Perform real terminal visual QA before release candidate.
+- Add stronger `NO_COLOR` / redirected output / Windows Terminal theme end-to-end checks.
+- Future Zoom S1 cleanup requires explicit Safety Reviewer approval.
+
 ## v0.3.0 - 2026-05-19
 
 ### Highlights

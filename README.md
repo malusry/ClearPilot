@@ -4,13 +4,17 @@ ClearPilot is a conservative Windows cleanup assistant. It focuses on cache clea
 
 **Latest release:** [v0.3.0](https://github.com/malusry/ClearPilot/releases/tag/v0.3.0)
 
+> v0.4 behavior in this README reflects validated pre-RC capabilities.  
+> It is documentation status only, not a published release.
+
 ## Highlights
 
-- Quick Safe Clean for very-low-risk temporary files.
-- Recommended Cleanup for low-risk cache/log targets, with explicit confirmation.
-- Deep Space Analysis for review-only large files and system-managed areas.
-- Direct cleanup decisions: `Recommended to clean`, `Not recommended to clean`, `Analysis only, do not clean`, and `Blocked`.
-- English UI by default, with optional Simplified Chinese.
+- Quick Safe Clean: S0-only automatic cleanup with clearer boundary and cleaner summaries.
+- Recommended Cleanup: confirmed-S1-only, conclusion-first cards, safer bulk selection behavior.
+- Deep Space Analysis: read-only/no-delete, simplified analysis cards, Downloads/Zoom insight only.
+- Reports v2: advisor-style output for cleaned/skipped/failed and decision classes.
+- Conservative expansion for app cache/log/crash diagnostics, package manager caches, and user diagnostics.
+- English UI by default, with optional Simplified Chinese (zh-CN) and mojibake regressions covered.
 - No administrator privileges required.
 
 ## Download
@@ -55,30 +59,103 @@ Higher-risk or blocked targets are never deleted by ClearPilot.
 
 Safety gates are enforced in the cleanup engine. User-facing recommendations do not override them.
 
-## What v0.3.0 Covers
+## Main Modes (v0.4 Validated Behavior)
 
-### Windows cache and diagnostics
+### Quick Safe Clean
 
-- Current user temp files
-- Windows temp files where accessible without elevation
-- Windows Error Reporting user-scope files
-- User crash dumps, with diagnostic caution
-- INetCache cache-only paths, excluding identity/session data
-- Microsoft Store `LocalCache` paths
-- Windows Update, Delivery Optimization, CBS/DISM logs, memory dumps, and `Windows.old` as review-only analysis
+- S0-only automatic cleanup.
+- Focuses on known very-low-risk temporary/cache targets.
+- Summarizes cleaned/skipped/failed counts and reclaimed bytes.
+- Does not present deep/aggressive language.
 
-### Game launcher cache and logs
+### Recommended Cleanup
 
-Conservative launcher-scoped coverage for:
+- Confirmed-S1-only.
+- Conclusion-first cards:
+  - `Decision`
+  - `Reason`
+  - `Impact`
+  - `Expected reclaim`
+  - `Risk`
+- `A` selects only eligible recommended S1 items.
+- Process-guard-blocked items are excluded from bulk selection.
 
-- Steam
-- Epic Games Launcher
-- Battle.net
-- Riot Client
-- EA App
-- Ubisoft Connect
+### Deep Space Analysis
 
-Launcher targets are process-guarded and limited to known cache/log/dump paths. Installed games, saves, configs, manifests, downloads in progress, and library metadata are excluded.
+- Strictly read-only/no-delete.
+- Simplified cards:
+  - `Decision`
+  - `Risk`
+  - `Path`
+  - `Insight`
+  - `Boundary`
+- Downloads is visible for read-only storage understanding.
+- Zoom is visible as read-only evidence profile.
+- Desktop/Documents/Pictures/Videos/Music are excluded by default.
+
+### Reports
+
+- Reports v2 advisor model:
+  - cleaned
+  - skipped
+  - failed
+  - recommended
+  - not recommended
+  - analysis-only
+  - blocked
+  - intentionally untouched
+
+## v0.4 Highlights (Validated, Pre-Release)
+
+### Recommended Cleanup and UI
+
+- Conclusion-first output model in CLI.
+- Cleaner confirmation boundary messaging.
+- Field-specific semantic colors for labels and values.
+- No action-first primary field.
+
+### Deep Space
+
+- Read-only/no-delete framing is explicit.
+- Downloads read-only insight boundary.
+- Zoom read-only evidence profile.
+- Simplified card structure for fast review.
+
+### Reports v2
+
+- Advisor-style report sections and decision breakdown.
+- Legacy action-first primary wording removed.
+- BLOCKED finality wording clarified.
+
+### Expanded S1 Coverage (Conservative)
+
+#### Application profiles
+
+- Discord
+- Slack
+- Microsoft Teams
+- VS Code
+- JetBrains IDEs
+
+Coverage remains limited to conservative cache/log/completed crash-diagnostic patterns, with process guards and age thresholds.
+
+#### Package manager caches
+
+- npm, pnpm, Yarn
+- NuGet, pip
+- Cargo, Gradle, Maven
+- Deno, Bun, Composer, Go
+
+All package-manager cleanup targets remain S1 only. Project-local dependency/build folders are excluded.
+
+#### Windows user diagnostics
+
+- User `CrashDumps`
+- WER `ReportArchive`
+- WER `Temp`
+- WER `ReportQueue` with active/pending/state/session/uploads/attachments exclusions
+
+System-managed areas remain review-only or blocked.
 
 ## What ClearPilot Does Not Do
 
@@ -86,11 +163,43 @@ ClearPilot intentionally does not perform:
 
 - Registry cleaning
 - Driver cleaning
+- Service cleaning or service stop/kill operations
 - Browser identity/profile cleanup, including cookies, passwords, bookmarks, history, sessions, local storage, IndexedDB, or session storage
 - Game install, save, config, mod, screenshot, recording, manifest, or library metadata cleanup
 - Microsoft Defender quarantine, protection history, signatures, engine, or scan-state cleanup
 - Service stopping, ACL changes, forced unlocks, or privilege escalation
+- Windows servicing/update internals cleanup (`SoftwareDistribution`, Delivery Optimization, CBS, DISM, `Windows.old`)
+- System memory dump cleanup (`MEMORY.DMP`, system `Minidump`)
+- Personal files as cleanup targets
 - Whole-root deletion of `Windows`, `Program Files`, `Program Files (x86)`, `ProgramData`, or user profile directories
+
+## Supported Coverage Overview
+
+### App profile coverage (S1 confirmed cleanup only)
+
+- Discord / Slack / Microsoft Teams
+- VS Code / JetBrains IDEs
+- Conservative cache/log/completed crash diagnostics patterns only
+- Process guard + age threshold + strict exclusions
+
+### Package manager coverage (S1 confirmed cleanup only)
+
+- npm / pnpm / Yarn
+- NuGet / pip
+- Cargo / Gradle / Maven
+- Deno / Bun / Composer / Go
+- Exact user-level cache roots only
+- Project-local dependency/build folders excluded
+
+### Windows diagnostics coverage
+
+- User diagnostics S1:
+  - CrashDumps
+  - WER ReportArchive
+  - WER Temp
+  - WER ReportQueue (strict exclusions)
+- System-managed diagnostics:
+  - review-only or blocked (not cleanup targets)
 
 ## Design Principles
 
@@ -138,6 +247,10 @@ By default:
 - Deep Space reports: `%LOCALAPPDATA%\ClearPilot\reports`
 
 ClearPilot records metadata about cleanup decisions and results. It does not log file contents.
+
+## Draft Release Notes
+
+For v0.4 pre-release notes (draft only), see [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
 ## License
 
