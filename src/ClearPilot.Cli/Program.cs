@@ -228,8 +228,7 @@ static void RunRecommendedCleanup(AppSettings settings)
     }
 
     WriteCleanupPreviewSummary(text, candidates, text.Get(StringKey.RecommendedPreviewSafety));
-    WriteLineColor(GetRecommendationBoundaryMessageV45(text), Theme.Warning);
-    WriteLineColor(text.Get(StringKey.RecommendedScanFound), Theme.Warning);
+    WriteLineColor(text.Get(StringKey.RecommendedScanFound), ConsolePresentationStyle.GetModeColor(ConsolePresentationStyle.ModeColorRole.RecommendedCleanup));
     WriteBadgeNotice(FormatRiskBadge(RiskLevel.S1LowRisk), GetRiskColor(RiskLevel.S1LowRisk), text.Get(StringKey.RecommendedActionHint));
     Console.WriteLine();
 
@@ -237,8 +236,6 @@ static void RunRecommendedCleanup(AppSettings settings)
     {
         var candidate = candidates[index];
         var launcherRunning = IsProcessGuardBlocked(candidate, ruleMap, processInspector);
-        var processGuardText = GetProcessGuardPreviewTextV45(text, candidate, ruleMap, processInspector, launcherRunning);
-        var processGuardDetail = BuildProcessGuardDetailLineV46(text, processGuardText, launcherRunning);
         var displayDecision = launcherRunning ? CleanupDecision.NotRecommendedToClean : candidate.CleanupDecision;
         var displayDecisionReason = launcherRunning
             ? GetAppRunningSkipReason(text)
@@ -252,45 +249,37 @@ static void RunRecommendedCleanup(AppSettings settings)
                     $"{GetDecisionLabelV46(text)}: ",
                     FormatCleanupDecisionBadgeV46(text, displayDecision),
                     GetDecisionColorV46(displayDecision),
-                    prefixColor: Theme.Heading),
+                    prefixColor: ConsolePresentationStyle.GetRecommendedFieldLabelColor()),
                 CardDetailLine.WithHighlight(
                     $"{GetReasonLabelV46(text)}: ",
                     displayDecisionReason,
                     Theme.Text,
-                    prefixColor: Theme.Heading),
+                    prefixColor: ConsolePresentationStyle.GetRecommendedFieldLabelColor()),
                 CardDetailLine.WithHighlight(
                     $"{GetImpactLabelV46(text)}: ",
                     GetPossibleImpactForDisplayV46(text, candidate, displayDecision),
-                    Theme.Muted,
-                    prefixColor: Theme.Heading),
+                    ConsolePresentationStyle.GetRecommendedImpactColor(),
+                    prefixColor: ConsolePresentationStyle.GetRecommendedFieldLabelColor()),
                 CardDetailLine.WithHighlight(
                     $"{GetExpectedReclaimLabelV46(text)}: ",
                     FormatBytes(candidate.EstimatedBytes),
-                    Theme.Text,
-                    prefixColor: Theme.Heading),
+                    ConsolePresentationStyle.GetRecommendedExpectedReclaimColor(),
+                    prefixColor: ConsolePresentationStyle.GetRecommendedFieldLabelColor()),
                 CardDetailLine.WithHighlight(
                     $"{GetRiskLabelV46(text)}: ",
                     FormatRiskBadge(candidate.RiskLevel),
                     Theme.Muted,
-                    prefixColor: Theme.Heading),
-                CardDetailLine.WithHighlight(
-                    $"{GetSafetyNoteLabelV46(text)}: ",
-                    GetSafetyNoteForDisplayV46(text, candidate, displayDecision),
-                    Theme.Muted,
-                    prefixColor: Theme.Heading),
-                processGuardDetail
+                    prefixColor: ConsolePresentationStyle.GetRecommendedFieldLabelColor())
             ],
             GetRiskColor(candidate.RiskLevel));
         Console.WriteLine();
     }
 
-    WriteMenuOption("A", text.Get(StringKey.RecommendedSelectionAll), Theme.Warning);
+    WriteMenuOption("A", text.Get(StringKey.RecommendedSelectionAll), ConsolePresentationStyle.GetModeColor(ConsolePresentationStyle.ModeColorRole.RecommendedCleanup));
     WriteMenuOption("0", text.Get(StringKey.MenuCancel), Theme.Subtle);
     Console.WriteLine();
-    WriteLineColor(GetRecommendedConfirmationBoundaryLine1V45(text), Theme.Warning);
-    WriteLineColor(GetRecommendedConfirmationBoundaryLine2V45(text), Theme.Warning);
-    WriteLineColor(GetRecommendedConfirmationBoundaryLine3V45(text), Theme.Warning);
-    WriteLineColor(GetRecommendedConfirmationBoundaryLine4V45(text), Theme.Warning);
+    WriteLineColor(GetRecommendedConfirmationBoundaryLine1V45(text), ConsolePresentationStyle.GetRecommendedPrimarySafetyColor());
+    WriteLineColor(GetRecommendedConfirmationBoundaryLine2V45(text), ConsolePresentationStyle.GetRecommendedSecondarySafetyColor());
     Console.WriteLine();
     WritePrompt(text.Get(StringKey.RecommendedSelectionPrompt));
     var selection = Console.ReadLine();
@@ -1349,11 +1338,6 @@ static bool IsLikelyZoomPath(string path, string targetId)
         || path.EndsWith($"{Path.AltDirectorySeparatorChar}Zoom", StringComparison.OrdinalIgnoreCase);
 }
 
-static string GetSafetyNoteLabelV46(MessageCatalog text)
-{
-    return ConsolePresentationStyle.GetSafetyNoteLabel(text.Language);
-}
-
 static string GetDecisionReasonForDisplayV46(MessageCatalog text, CleanupCandidate candidate, CleanupDecision decision)
 {
     if (text.Language != Language.SimplifiedChinese)
@@ -1444,33 +1428,6 @@ static string GetPossibleImpactForDisplayV46(MessageCatalog text, CleanupCandida
     };
 }
 
-static string GetSafetyNoteForDisplayV46(MessageCatalog text, CleanupCandidate candidate, CleanupDecision decision)
-{
-    if (text.Language != Language.SimplifiedChinese)
-    {
-        return candidate.SafetyNote;
-    }
-
-    return decision switch
-    {
-        CleanupDecision.RecommendedToClean => "不会删除已安装游戏、存档或浏览器身份数据。",
-        CleanupDecision.NotRecommendedToClean => "相关安全门、路径校验和进程守卫仍然生效。",
-        CleanupDecision.AnalysisOnlyDoNotClean => "仅分析，不清理。",
-        CleanupDecision.Blocked => "已阻止：该目标受保护策略限制。",
-        _ => candidate.SafetyNote
-    };
-}
-
-static CardDetailLine BuildProcessGuardDetailLineV46(MessageCatalog text, string processGuardText, bool launcherRunning)
-{
-    var prefix = $"{ConsolePresentationStyle.GetStatusLabel(text.Language)}: ";
-    return CardDetailLine.WithHighlight(
-        prefix,
-        processGuardText,
-        launcherRunning ? Theme.Warning : Theme.Muted,
-        prefixColor: Theme.Heading);
-}
-
 static void WriteQuickSafeSkippedReasonSummary(MessageCatalog text, CleanupRunResult result)
 {
     var skippedItems = result.Items
@@ -1534,39 +1491,18 @@ static string ClassifyQuickSafeSkippedReasonKey(MessageCatalog text, CleanupItem
     return text.Get(StringKey.QuickSafeCleanSkippedReasonOther);
 }
 
-static string GetRecommendationBoundaryMessageV45(MessageCatalog text)
-{
-    return text.Language == Language.SimplifiedChinese
-        ? "推荐清理仅包含 S1 项目；S2/S3/BLOCKED 永不删除。"
-        : "Recommended Cleanup contains S1 items only; S2/S3/BLOCKED are never deleted.";
-}
-
 static string GetRecommendedConfirmationBoundaryLine1V45(MessageCatalog text)
 {
     return text.Language == Language.SimplifiedChinese
-        ? "本次操作仅包含 S1 目标。"
-        : "Only S1 targets are included in this operation.";
+        ? "只有已选择的 S1 项目会在输入 YES 后清理。"
+        : "Only selected S1 items are cleaned after YES confirmation.";
 }
 
 static string GetRecommendedConfirmationBoundaryLine2V45(MessageCatalog text)
 {
     return text.Language == Language.SimplifiedChinese
-        ? "需要明确确认。"
-        : "Explicit confirmation required.";
-}
-
-static string GetRecommendedConfirmationBoundaryLine3V45(MessageCatalog text)
-{
-    return text.Language == Language.SimplifiedChinese
-        ? "S2/S3/BLOCKED 目标不会被删除。"
-        : "S2/S3/BLOCKED targets will not be deleted.";
-}
-
-static string GetRecommendedConfirmationBoundaryLine4V45(MessageCatalog text)
-{
-    return text.Language == Language.SimplifiedChinese
-        ? "不会删除游戏/存档，也不会删除浏览器身份或会话数据。"
-        : "Games/saves and browser identity/session data are not removed.";
+        ? "游戏/存档、浏览器身份/会话数据、S2/S3 和 BLOCKED 目标永不纳入。"
+        : "Games/saves, browser identity/session data, S2/S3, and BLOCKED targets are never included.";
 }
 
 static string GetExplicitConfirmationPromptV45(MessageCatalog text)
@@ -1588,31 +1524,6 @@ static string GetDeepSpaceActionHintV45(MessageCatalog text)
     return text.Language == Language.SimplifiedChinese
         ? "仅分析，不清理：输入编号仅打开位置。"
         : "Analysis only: enter an item number to open location; no deletion will occur.";
-}
-
-static string GetProcessGuardPreviewTextV45(
-    MessageCatalog text,
-    CleanupCandidate candidate,
-    IReadOnlyDictionary<string, CleanupRule> ruleMap,
-    IProcessInspector processInspector,
-    bool? launcherRunningOverride = null)
-{
-    if (!ruleMap.TryGetValue(candidate.RuleId, out var rule) || rule.EffectiveProcessGuardNames.Count == 0)
-    {
-        return text.Language == Language.SimplifiedChinese
-            ? "进程守卫：不适用。"
-            : "Process guard: not applicable.";
-    }
-
-    var running = launcherRunningOverride ?? processInspector.IsAnyRunning(rule.EffectiveProcessGuardNames);
-    if (running)
-    {
-        return GetAppRunningSkipReason(text);
-    }
-
-    return text.Language == Language.SimplifiedChinese
-        ? "进程守卫：通过。"
-        : "Process guard: passed.";
 }
 
 static ConsoleColor GetRiskColor(RiskLevel riskLevel)

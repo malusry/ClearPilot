@@ -31,7 +31,7 @@ public static class ConsolePresentationStyle
     {
         return decision switch
         {
-            CleanupDecision.RecommendedToClean => ConsoleColor.DarkGreen,
+            CleanupDecision.RecommendedToClean => ConsoleColor.Green,
             CleanupDecision.NotRecommendedToClean => ConsoleColor.DarkYellow,
             CleanupDecision.AnalysisOnlyDoNotClean => ConsoleColor.Cyan,
             CleanupDecision.Blocked => ConsoleColor.Red,
@@ -112,8 +112,8 @@ public static class ConsolePresentationStyle
     public static string GetImpactLabel(Language language)
     {
         return language == Language.SimplifiedChinese
-            ? "清理后的可能影响"
-            : "Possible impact if cleaned";
+            ? "影响"
+            : "Impact";
     }
 
     public static string GetExpectedReclaimLabel(Language language)
@@ -124,11 +124,6 @@ public static class ConsolePresentationStyle
     public static string GetSafetyNoteLabel(Language language)
     {
         return language == Language.SimplifiedChinese ? "安全说明" : "Safety note";
-    }
-
-    public static string GetStatusLabel(Language language)
-    {
-        return language == Language.SimplifiedChinese ? "状态" : "Status";
     }
 
     public static ConsoleColor GetDeepSpacePrimaryColor()
@@ -147,6 +142,36 @@ public static class ConsolePresentationStyle
     }
 
     public static ConsoleColor GetDeepSpacePathColor()
+    {
+        return ConsoleColor.DarkGray;
+    }
+
+    public static ConsoleColor GetRecommendedFieldLabelColor()
+    {
+        return ConsoleColor.DarkCyan;
+    }
+
+    public static ConsoleColor GetRecommendedExpectedReclaimColor()
+    {
+        return ConsoleColor.Cyan;
+    }
+
+    public static ConsoleColor GetRecommendedImpactColor()
+    {
+        return ConsoleColor.DarkYellow;
+    }
+
+    public static ConsoleColor GetRecommendedPromptColor()
+    {
+        return ConsoleColor.Cyan;
+    }
+
+    public static ConsoleColor GetRecommendedPrimarySafetyColor()
+    {
+        return ConsoleColor.Yellow;
+    }
+
+    public static ConsoleColor GetRecommendedSecondarySafetyColor()
     {
         return ConsoleColor.DarkGray;
     }

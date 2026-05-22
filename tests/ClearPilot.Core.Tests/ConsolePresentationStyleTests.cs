@@ -37,7 +37,7 @@ public sealed class ConsolePresentationStyleTests
         Assert.Equal("Analysis only, do not clean", ConsolePresentationStyle.GetDecisionBadge(Language.English, CleanupDecision.AnalysisOnlyDoNotClean));
         Assert.Equal("Blocked", ConsolePresentationStyle.GetDecisionBadge(Language.English, CleanupDecision.Blocked));
         Assert.Equal("Reason", ConsolePresentationStyle.GetReasonLabel(Language.English));
-        Assert.Equal("Possible impact if cleaned", ConsolePresentationStyle.GetImpactLabel(Language.English));
+        Assert.Equal("Impact", ConsolePresentationStyle.GetImpactLabel(Language.English));
         Assert.Equal("Expected reclaim", ConsolePresentationStyle.GetExpectedReclaimLabel(Language.English));
         Assert.Equal("Risk", ConsolePresentationStyle.GetRiskLabel(Language.English));
         Assert.Equal("Safety note", ConsolePresentationStyle.GetSafetyNoteLabel(Language.English));
@@ -56,10 +56,9 @@ public sealed class ConsolePresentationStyleTests
         Assert.Equal("已阻止", ConsolePresentationStyle.GetDecisionBadge(Language.SimplifiedChinese, CleanupDecision.Blocked));
         Assert.Equal("风险", ConsolePresentationStyle.GetRiskLabel(Language.SimplifiedChinese));
         Assert.Equal("原因", ConsolePresentationStyle.GetReasonLabel(Language.SimplifiedChinese));
-        Assert.Equal("清理后的可能影响", ConsolePresentationStyle.GetImpactLabel(Language.SimplifiedChinese));
+        Assert.Equal("影响", ConsolePresentationStyle.GetImpactLabel(Language.SimplifiedChinese));
         Assert.Equal("预计可释放", ConsolePresentationStyle.GetExpectedReclaimLabel(Language.SimplifiedChinese));
         Assert.Equal("安全说明", ConsolePresentationStyle.GetSafetyNoteLabel(Language.SimplifiedChinese));
-        Assert.Equal("状态", ConsolePresentationStyle.GetStatusLabel(Language.SimplifiedChinese));
     }
 
     [Fact]
@@ -120,5 +119,19 @@ public sealed class ConsolePresentationStyleTests
         Assert.NotEqual(ConsoleColor.DarkGreen, ConsolePresentationStyle.GetDeepSpacePrimaryColor());
         Assert.NotEqual(ConsoleColor.Green, ConsolePresentationStyle.GetDeepSpaceSizeColor());
         Assert.NotEqual(ConsoleColor.DarkGreen, ConsolePresentationStyle.GetDeepSpaceSizeColor());
+    }
+
+    [Fact]
+    public void ConsolePresentationStyle_RecommendedCleanup_UsesDistinctModeColors()
+    {
+        Assert.Equal(ConsoleColor.DarkYellow, ConsolePresentationStyle.GetModeColor(ConsolePresentationStyle.ModeColorRole.RecommendedCleanup));
+        Assert.Equal(ConsoleColor.Green, ConsolePresentationStyle.GetDecisionColor(CleanupDecision.RecommendedToClean));
+        Assert.Equal(ConsoleColor.DarkYellow, ConsolePresentationStyle.GetDecisionColor(CleanupDecision.NotRecommendedToClean));
+        Assert.Equal(ConsoleColor.DarkCyan, ConsolePresentationStyle.GetRecommendedFieldLabelColor());
+        Assert.Equal(ConsoleColor.Cyan, ConsolePresentationStyle.GetRecommendedExpectedReclaimColor());
+        Assert.Equal(ConsoleColor.DarkYellow, ConsolePresentationStyle.GetRecommendedImpactColor());
+        Assert.Equal(ConsoleColor.Cyan, ConsolePresentationStyle.GetRecommendedPromptColor());
+        Assert.Equal(ConsoleColor.Yellow, ConsolePresentationStyle.GetRecommendedPrimarySafetyColor());
+        Assert.Equal(ConsoleColor.DarkGray, ConsolePresentationStyle.GetRecommendedSecondarySafetyColor());
     }
 }

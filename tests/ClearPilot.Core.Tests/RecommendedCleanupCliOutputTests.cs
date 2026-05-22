@@ -19,7 +19,7 @@ public sealed class RecommendedCleanupCliOutputTests
 
         Assert.Contains("Decision:", output, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Reason:", output, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Possible impact if cleaned:", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Impact:", output, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Expected reclaim:", output, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Risk:", output, StringComparison.OrdinalIgnoreCase);
     }
@@ -48,9 +48,64 @@ public sealed class RecommendedCleanupCliOutputTests
 
         Assert.Contains("\u7ED3\u8BBA:", focused, StringComparison.Ordinal);
         Assert.Contains("\u539F\u56E0:", focused, StringComparison.Ordinal);
-        Assert.Contains("\u6E05\u7406\u540E\u7684\u53EF\u80FD\u5F71\u54CD:", focused, StringComparison.Ordinal);
+        Assert.Contains("\u5F71\u54CD:", focused, StringComparison.Ordinal);
         Assert.Contains("\u9884\u8BA1\u53EF\u91CA\u653E:", focused, StringComparison.Ordinal);
         Assert.Contains("\u98CE\u9669:", focused, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RecommendedCleanupCli_RemovesRepeatedSafetyWall()
+    {
+        using var workspace = RecommendedCliTestWorkspace.Create();
+        workspace.CreateRecommendedAndNotRecommendedFixtures();
+
+        var output = workspace.RunRecommendedCleanupCli(Language.English, "2\n0\n\n0\n");
+
+        Assert.DoesNotContain("Recommended Cleanup contains S1 items only", output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Only S1 targets are included in this operation", output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Explicit confirmation required", output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("S2/S3/BLOCKED targets will not be deleted", output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Games/saves and browser identity/session data are not removed", output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void RecommendedCleanupCli_FinalConfirmation_UsesTwoLineSafetyNote()
+    {
+        using var workspace = RecommendedCliTestWorkspace.Create();
+        workspace.CreateRecommendedAndNotRecommendedFixtures();
+
+        var output = workspace.RunRecommendedCleanupCli(Language.English, "2\nA\n\n0\n");
+
+        Assert.Contains("Only selected S1 items are cleaned after YES confirmation.", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Games/saves, browser identity/session data, S2/S3, and BLOCKED targets are never included.", output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Only S1 targets are included in this operation.", output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Explicit confirmation required.", output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("S2/S3/BLOCKED targets will not be deleted.", output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void RecommendedCleanupCli_ZhCn_FinalConfirmation_UsesTwoLineSafetyNote()
+    {
+        using var workspace = RecommendedCliTestWorkspace.Create();
+        workspace.CreateRecommendedAndNotRecommendedFixtures();
+
+        var output = workspace.RunRecommendedCleanupCli(Language.SimplifiedChinese, "2\nA\n\n0\n");
+
+        Assert.Contains("只有已选择的 S1 项目会在输入 YES 后清理。", output, StringComparison.Ordinal);
+        Assert.Contains("游戏/存档、浏览器身份/会话数据、S2/S3 和 BLOCKED 目标永不纳入。", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RecommendedCleanupCli_DoesNotShowStatusPrimaryField()
+    {
+        using var workspace = RecommendedCliTestWorkspace.Create();
+        workspace.CreateRecommendedAndNotRecommendedFixtures();
+
+        var output = workspace.RunRecommendedCleanupCli(Language.English, "2\n0\n\n0\n");
+        var zhOutput = workspace.RunRecommendedCleanupCli(Language.SimplifiedChinese, "2\n0\n\n0\n");
+
+        Assert.DoesNotContain("Status:", output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("状态:", zhOutput, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -147,6 +202,21 @@ public sealed class RecommendedCleanupCliOutputTests
             processGuardBlocked: false));
     }
 
+    [Fact]
+    public void RecommendedCleanupCli_ASelectionWordingIsClear()
+    {
+        using var workspace = RecommendedCliTestWorkspace.Create();
+        workspace.CreateRecommendedAndNotRecommendedFixtures();
+
+        var output = workspace.RunRecommendedCleanupCli(Language.English, "2\n0\n\n0\n");
+        var zhOutput = workspace.RunRecommendedCleanupCli(Language.SimplifiedChinese, "2\n0\n\n0\n");
+
+        Assert.Contains("A selects recommended S1 items only", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("item numbers", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("A 只选择建议清理的 S1 项目", zhOutput, StringComparison.Ordinal);
+        Assert.Contains("请输入编号、A", zhOutput, StringComparison.Ordinal);
+    }
+
     private static string ExtractRecommendedPrimaryLines(string output)
     {
         var builder = new StringBuilder();
@@ -155,16 +225,14 @@ public sealed class RecommendedCleanupCliOutputTests
         {
             if (line.Contains("Decision:", StringComparison.OrdinalIgnoreCase)
                 || line.Contains("Reason:", StringComparison.OrdinalIgnoreCase)
-                || line.Contains("Possible impact if cleaned:", StringComparison.OrdinalIgnoreCase)
+                || line.Contains("Impact:", StringComparison.OrdinalIgnoreCase)
                 || line.Contains("Expected reclaim:", StringComparison.OrdinalIgnoreCase)
                 || line.Contains("Risk:", StringComparison.OrdinalIgnoreCase)
-                || line.Contains("Safety note:", StringComparison.OrdinalIgnoreCase)
                 || line.Contains("\u7ED3\u8BBA:", StringComparison.Ordinal)
                 || line.Contains("\u539F\u56E0:", StringComparison.Ordinal)
-                || line.Contains("\u6E05\u7406\u540E\u7684\u53EF\u80FD\u5F71\u54CD:", StringComparison.Ordinal)
+                || line.Contains("\u5F71\u54CD:", StringComparison.Ordinal)
                 || line.Contains("\u9884\u8BA1\u53EF\u91CA\u653E:", StringComparison.Ordinal)
-                || line.Contains("\u98CE\u9669:", StringComparison.Ordinal)
-                || line.Contains("\u5B89\u5168\u8BF4\u660E:", StringComparison.Ordinal))
+                || line.Contains("\u98CE\u9669:", StringComparison.Ordinal))
             {
                 builder.AppendLine(line);
             }
