@@ -278,8 +278,7 @@ static void RunRecommendedCleanup(AppSettings settings)
     WriteMenuOption("A", text.Get(StringKey.RecommendedSelectionAll), ConsolePresentationStyle.GetModeColor(ConsolePresentationStyle.ModeColorRole.RecommendedCleanup));
     WriteMenuOption("0", text.Get(StringKey.MenuCancel), Theme.Subtle);
     Console.WriteLine();
-    WriteLineColor(GetRecommendedConfirmationBoundaryLine1V45(text), ConsolePresentationStyle.GetRecommendedPrimarySafetyColor());
-    WriteLineColor(GetRecommendedConfirmationBoundaryLine2V45(text), ConsolePresentationStyle.GetRecommendedSecondarySafetyColor());
+    WriteLineColor(GetRecommendedSelectionExecutionLineV47(text), ConsolePresentationStyle.GetRecommendedPrimarySafetyColor());
     Console.WriteLine();
     WritePrompt(text.Get(StringKey.RecommendedSelectionPrompt));
     var selection = Console.ReadLine();
@@ -287,18 +286,6 @@ static void RunRecommendedCleanup(AppSettings settings)
 
     var selectedRuleIds = ParseRecommendedSelection(selection, candidates, ruleMap, processInspector);
     if (selectedRuleIds.Count == 0)
-    {
-        WriteLineColor(text.Get(StringKey.RecommendedSelectionCancelled), Theme.Subtle);
-        Pause(text);
-        return;
-    }
-
-    WritePrompt(GetExplicitConfirmationPromptV45(text));
-    var confirm = Console.ReadLine();
-    Console.WriteLine();
-    var confirmed = string.Equals(confirm?.Trim(), "Y", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(confirm?.Trim(), "YES", StringComparison.OrdinalIgnoreCase);
-    if (!confirmed)
     {
         WriteLineColor(text.Get(StringKey.RecommendedSelectionCancelled), Theme.Subtle);
         Pause(text);
@@ -314,7 +301,7 @@ static void RunRecommendedCleanup(AppSettings settings)
 
     var result = service.Clean(
         selectedRules,
-        confirmedByUser: confirmed,
+        confirmedByUser: true,
         dryRun: settings.DryRun,
         now: DateTimeOffset.UtcNow);
     StartPage(text.Get(StringKey.RecommendedCleanCompleted));
@@ -386,13 +373,14 @@ static void RunQuickSafeClean(AppSettings settings)
 
     WriteLabelValue(text.Get(StringKey.QuickSafeCleanSkippedItems), result.SkippedCount.ToString(), Theme.Note);
     WriteLabelValue(text.Get(StringKey.QuickSafeCleanFailedItems), result.FailedCount.ToString(), result.FailedCount == 0 ? Theme.Muted : Theme.Danger);
-    WriteLineColor(text.Get(StringKey.QuickSafeCleanFailureNoElevation), Theme.Warning);
 
     if (result.SkippedCount > 0)
     {
         WriteLineColor(text.Get(StringKey.QuickSafeCleanSkippedUnchangedNote), Theme.Note);
         WriteQuickSafeSkippedReasonSummary(text, result);
     }
+
+    WriteLineColor(text.Get(StringKey.QuickSafeCleanFailureNoElevation), Theme.Warning);
 
     if (!string.IsNullOrWhiteSpace(result.LogPath))
     {
@@ -1043,13 +1031,6 @@ static string GetRecommendedConfirmationBoundaryLine4(MessageCatalog text)
         : "Games/saves and browser identity/session data are not removed.";
 }
 
-static string GetExplicitConfirmationPrompt(MessageCatalog text)
-{
-    return text.Language == Language.SimplifiedChinese
-        ? "输入 YES 确认清理，或直接回车选择否（默认）："
-        : "Type YES to confirm cleanup, or press Enter for No (default): ";
-}
-
 static string GetProcessGuardPreviewText(
     MessageCatalog text,
     CleanupCandidate candidate,
@@ -1491,25 +1472,11 @@ static string ClassifyQuickSafeSkippedReasonKey(MessageCatalog text, CleanupItem
     return text.Get(StringKey.QuickSafeCleanSkippedReasonOther);
 }
 
-static string GetRecommendedConfirmationBoundaryLine1V45(MessageCatalog text)
+static string GetRecommendedSelectionExecutionLineV47(MessageCatalog text)
 {
     return text.Language == Language.SimplifiedChinese
-        ? "只有已选择的 S1 项目会在输入 YES 后清理。"
-        : "Only selected S1 items are cleaned after YES confirmation.";
-}
-
-static string GetRecommendedConfirmationBoundaryLine2V45(MessageCatalog text)
-{
-    return text.Language == Language.SimplifiedChinese
-        ? "游戏/存档、浏览器身份/会话数据、S2/S3 和 BLOCKED 目标永不纳入。"
-        : "Games/saves, browser identity/session data, S2/S3, and BLOCKED targets are never included.";
-}
-
-static string GetExplicitConfirmationPromptV45(MessageCatalog text)
-{
-    return text.Language == Language.SimplifiedChinese
-        ? "输入 YES 以明确确认，直接回车为否（默认不执行）："
-        : "Type YES to confirm cleanup, or press Enter for No (default): ";
+        ? "回车后将立即清理所选 S1 项目。"
+        : "Press Enter to clean the selected S1 items.";
 }
 
 static string GetDeepSpaceNoDeleteNoticeV45(MessageCatalog text)
@@ -1859,7 +1826,11 @@ static IReadOnlySet<string> ParseRecommendedSelection(
         var index = number - 1;
         if (index >= 0 && index < candidates.Count)
         {
-            selectedRuleIds.Add(candidates[index].RuleId);
+            var candidate = candidates[index];
+            if (IsBulkSelectableRecommendedCandidate(candidate, ruleMap, processInspector))
+            {
+                selectedRuleIds.Add(candidate.RuleId);
+            }
         }
     }
 

@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Text;
 using ClearPilot.Core.Cleanup;
 using ClearPilot.Core.Localization;
@@ -69,30 +69,42 @@ public sealed class RecommendedCleanupCliOutputTests
     }
 
     [Fact]
-    public void RecommendedCleanupCli_FinalConfirmation_UsesTwoLineSafetyNote()
+    public void RecommendedCleanupCli_UsesOneStepConfirmationPrompt()
     {
         using var workspace = RecommendedCliTestWorkspace.Create();
         workspace.CreateRecommendedAndNotRecommendedFixtures();
 
         var output = workspace.RunRecommendedCleanupCli(Language.English, "2\nA\n\n0\n");
 
-        Assert.Contains("Only selected S1 items are cleaned after YES confirmation.", output, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Games/saves, browser identity/session data, S2/S3, and BLOCKED targets are never included.", output, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("Only S1 targets are included in this operation.", output, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("Explicit confirmation required.", output, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("S2/S3/BLOCKED targets will not be deleted.", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Press Enter to clean the selected S1 items.", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Enter item numbers to clean, A for all recommended items, or 0 to cancel", output, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
-    public void RecommendedCleanupCli_ZhCn_FinalConfirmation_UsesTwoLineSafetyNote()
+        [Fact]
+    public void RecommendedCleanupCli_ZhCn_UsesOneStepConfirmationPrompt()
     {
         using var workspace = RecommendedCliTestWorkspace.Create();
         workspace.CreateRecommendedAndNotRecommendedFixtures();
 
         var output = workspace.RunRecommendedCleanupCli(Language.SimplifiedChinese, "2\nA\n\n0\n");
 
-        Assert.Contains("只有已选择的 S1 项目会在输入 YES 后清理。", output, StringComparison.Ordinal);
-        Assert.Contains("游戏/存档、浏览器身份/会话数据、S2/S3 和 BLOCKED 目标永不纳入。", output, StringComparison.Ordinal);
+        Assert.Contains("\u56DE\u8F66\u540E\u5C06\u7ACB\u5373\u6E05\u7406\u6240\u9009 S1 \u9879\u76EE\u3002", output, StringComparison.Ordinal);
+        Assert.Contains("\u8F93\u5165\u8981\u6E05\u7406\u7684\u7F16\u53F7\uFF0CA \u6E05\u7406\u5168\u90E8\u5EFA\u8BAE\u9879\uFF0C\u6216\u8F93\u5165 0 \u53D6\u6D88", output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RecommendedCleanupCli_DoesNotUseSecondaryYesConfirmationPrompt()
+    {
+        using var workspace = RecommendedCliTestWorkspace.Create();
+        workspace.CreateRecommendedAndNotRecommendedFixtures();
+
+        var output = workspace.RunRecommendedCleanupCli(Language.English, "2\n0\n\n0\n");
+        var zhOutput = workspace.RunRecommendedCleanupCli(Language.SimplifiedChinese, "2\n0\n\n0\n");
+
+        Assert.DoesNotContain("Type YES", output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("YES to confirm", output, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("\u8F93\u5165 YES", zhOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain("\u6700\u7EC8\u786E\u8BA4", zhOutput, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -105,7 +117,7 @@ public sealed class RecommendedCleanupCliOutputTests
         var zhOutput = workspace.RunRecommendedCleanupCli(Language.SimplifiedChinese, "2\n0\n\n0\n");
 
         Assert.DoesNotContain("Status:", output, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("状态:", zhOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain("鐘舵€?", zhOutput, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -159,7 +171,7 @@ public sealed class RecommendedCleanupCliOutputTests
         using var workspace = RecommendedCliTestWorkspace.Create();
         var (recommendedFile, notRecommendedFile, _) = workspace.CreateRecommendedAndNotRecommendedFixtures();
 
-        _ = workspace.RunRecommendedCleanupCli(Language.English, "2\nA\nY\n\n0\n");
+        _ = workspace.RunRecommendedCleanupCli(Language.English, "2\nA\n\n0\n");
 
         Assert.False(File.Exists(recommendedFile));
         Assert.True(File.Exists(notRecommendedFile));
@@ -172,7 +184,7 @@ public sealed class RecommendedCleanupCliOutputTests
         var (unblockedRecommendedFile, _, processGuardBlockedRecommendedFile) = workspace.CreateRecommendedAndNotRecommendedFixtures();
         using var fakeSteam = workspace.StartFakeSteamProcess();
 
-        _ = workspace.RunRecommendedCleanupCli(Language.English, "2\nA\nY\n\n0\n");
+        _ = workspace.RunRecommendedCleanupCli(Language.English, "2\nA\n\n0\n");
 
         Assert.False(File.Exists(unblockedRecommendedFile));
         Assert.True(File.Exists(processGuardBlockedRecommendedFile));
@@ -202,7 +214,7 @@ public sealed class RecommendedCleanupCliOutputTests
             processGuardBlocked: false));
     }
 
-    [Fact]
+        [Fact]
     public void RecommendedCleanupCli_ASelectionWordingIsClear()
     {
         using var workspace = RecommendedCliTestWorkspace.Create();
@@ -211,10 +223,49 @@ public sealed class RecommendedCleanupCliOutputTests
         var output = workspace.RunRecommendedCleanupCli(Language.English, "2\n0\n\n0\n");
         var zhOutput = workspace.RunRecommendedCleanupCli(Language.SimplifiedChinese, "2\n0\n\n0\n");
 
-        Assert.Contains("A selects recommended S1 items only", output, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("item numbers", output, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("A 只选择建议清理的 S1 项目", zhOutput, StringComparison.Ordinal);
-        Assert.Contains("请输入编号、A", zhOutput, StringComparison.Ordinal);
+        Assert.Contains("A for all recommended items", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Enter item numbers to clean", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("\u8F93\u5165\u8981\u6E05\u7406\u7684\u7F16\u53F7", zhOutput, StringComparison.Ordinal);
+        Assert.Contains("A \u6E05\u7406\u5168\u90E8\u5EFA\u8BAE\u9879", zhOutput, StringComparison.Ordinal);
+    }
+    [Fact]
+    public void RecommendedCleanup_EmptySelection_DoesNotCleanAnything()
+    {
+        using var workspace = RecommendedCliTestWorkspace.Create();
+        var (recommendedFile, notRecommendedFile, processGuardBlockedRecommendedFile) = workspace.CreateRecommendedAndNotRecommendedFixtures();
+
+        _ = workspace.RunRecommendedCleanupCli(Language.English, "2\n\n\n0\n");
+
+        Assert.True(File.Exists(recommendedFile));
+        Assert.True(File.Exists(notRecommendedFile));
+        Assert.True(File.Exists(processGuardBlockedRecommendedFile));
+    }
+
+    [Fact]
+    public void RecommendedCleanup_ZeroSelection_CancelsWithoutCleanup()
+    {
+        using var workspace = RecommendedCliTestWorkspace.Create();
+        var (recommendedFile, notRecommendedFile, processGuardBlockedRecommendedFile) = workspace.CreateRecommendedAndNotRecommendedFixtures();
+
+        _ = workspace.RunRecommendedCleanupCli(Language.English, "2\n0\n\n0\n");
+
+        Assert.True(File.Exists(recommendedFile));
+        Assert.True(File.Exists(notRecommendedFile));
+        Assert.True(File.Exists(processGuardBlockedRecommendedFile));
+    }
+
+    [Fact]
+    public void RecommendedCleanup_ManualSelection_FiltersOutIneligibleItems()
+    {
+        using var workspace = RecommendedCliTestWorkspace.Create();
+        var (recommendedFile, notRecommendedFile, processGuardBlockedRecommendedFile) = workspace.CreateRecommendedAndNotRecommendedFixtures();
+        using var fakeSteam = workspace.StartFakeSteamProcess();
+
+        _ = workspace.RunRecommendedCleanupCli(Language.English, "2\n1,2,3\n\n0\n");
+
+        Assert.False(File.Exists(recommendedFile));
+        Assert.True(File.Exists(notRecommendedFile));
+        Assert.True(File.Exists(processGuardBlockedRecommendedFile));
     }
 
     [Fact]
@@ -507,3 +558,4 @@ public sealed class RecommendedCleanupCliOutputTests
         }
     }
 }
+

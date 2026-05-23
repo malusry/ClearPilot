@@ -61,6 +61,12 @@ public sealed class QuickSafeCliOutputTests
         Assert.Contains("Skipped reasons", output, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Locked or in use", output, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("does not retry with elevated privileges", output, StringComparison.OrdinalIgnoreCase);
+
+        var skippedIndex = output.IndexOf("Skipped reasons", StringComparison.OrdinalIgnoreCase);
+        var footerIndex = output.IndexOf("does not retry with elevated privileges", StringComparison.OrdinalIgnoreCase);
+        var logIndex = output.IndexOf("Log folder", StringComparison.OrdinalIgnoreCase);
+        Assert.True(skippedIndex >= 0 && footerIndex > skippedIndex, "Safety footer should appear after skipped reasons.");
+        Assert.True(logIndex < 0 || footerIndex < logIndex, "Safety footer should appear before log folder.");
     }
 
     [Fact]
