@@ -1,6 +1,6 @@
-# ClearPilot v0.4.0 Release Notes (Draft)
+# ClearPilot v0.4.0 Release Notes
 
-Draft only. v0.4.0 has not been published as a GitHub release.
+ClearPilot v0.4.0 is the current stable release.
 
 ## Summary
 
@@ -25,7 +25,7 @@ ClearPilot v0.4 focuses on broader visibility, conservative S1 cleanup expansion
   - Risk
 - `A/all` selects only eligible recommended S1 items.
 - Process-guard-blocked S1 items are excluded from bulk selection.
-- Final confirmation safety note simplified.
+- One-step selection confirmation flow: submitting a valid selection starts cleanup; `0` cancels.
 - Field-level and field-label semantic color system added.
 
 ### Deep Space Analysis
@@ -122,12 +122,11 @@ No administrator requirement is introduced for v0.4 cleanup flows.
 
 ## Validation Snapshot
 
-- Full test suite: 276 passed, 0 failed, 0 skipped
-- Targeted tests: 177 passed, 0 failed, 0 skipped
+- Full test suite: 280 passed, 0 failed, 0 skipped
 
-## Packaging Strategy (Draft)
+## Packaging Strategy
 
-For v0.4 release preparation, the recommended primary user-facing artifact is:
+The recommended primary user-facing artifact is:
 
 - `win-x64` self-contained package
 
@@ -140,7 +139,7 @@ Validated local package result:
 
 - output folder: `artifacts\rc\v0.4.0-win-x64-self-contained`
 - file count: `194`
-- total size: `80,886,441 bytes` (~`77.14 MB`)
+- total size: `80,885,281 bytes` (~`77.14 MB`)
 
 The larger package size is expected for self-contained distribution.
 

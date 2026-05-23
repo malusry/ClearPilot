@@ -2,10 +2,7 @@
 
 ClearPilot is a conservative Windows cleanup assistant. It focuses on cache cleanup, explainable decisions, and strict safety boundaries rather than aggressive system tweaking.
 
-**Latest release:** [v0.3.0](https://github.com/malusry/ClearPilot/releases/tag/v0.3.0)
-
-> v0.4 behavior in this README reflects validated pre-RC capabilities.  
-> It is documentation status only, not a published release.
+**Latest release:** [v0.4.0](https://github.com/malusry/ClearPilot/releases/tag/v0.4.0)
 
 ## Highlights
 
@@ -21,33 +18,39 @@ ClearPilot is a conservative Windows cleanup assistant. It focuses on cache clea
 
 Download the latest Windows package from:
 
-[ClearPilot v0.3.0 release](https://github.com/malusry/ClearPilot/releases/tag/v0.3.0)
+[ClearPilot v0.4.0 release](https://github.com/malusry/ClearPilot/releases/tag/v0.4.0)
 
-The release includes:
+The recommended v0.4.0 Windows package is the `win-x64` self-contained zip. It includes the .NET runtime, so a separate global .NET runtime installation is not required.
+
+Release assets include:
+
+- `ClearPilot-v0.4.0-win-x64-self-contained.zip`
+- `SHA256SUMS.txt`
+
+The zip contains:
 
 - `ClearPilot.exe`
-- `ClearPilot.cmd`
-- SHA256 checksum file
+- runtime dependencies
 
 To run:
 
 ```powershell
-.\ClearPilot.cmd
+.\ClearPilot.exe
 ```
 
-## v0.4 Packaging Status (Draft)
+## v0.4 Packaging
 
-v0.4.0 is not published yet. For release preparation, the current recommended packaging strategy is:
+The v0.4.0 release uses:
 
 - `win-x64` self-contained package
 - Includes the required .NET runtime
 - Can run `ClearPilot.exe` directly on machines without a globally installed .NET runtime
 
-Validated local RC package (draft validation result):
+Validated release package:
 
 - Output folder: `artifacts\rc\v0.4.0-win-x64-self-contained`
 - File count: `194`
-- Total size: `80,886,441 bytes` (~`77.14 MB`)
+- Total size: `80,885,281 bytes` (~`77.14 MB`)
 
 The larger package size is expected for self-contained distribution.
 
@@ -264,9 +267,9 @@ By default:
 
 ClearPilot records metadata about cleanup decisions and results. It does not log file contents.
 
-## Draft Release Notes
+## Release Notes
 
-For v0.4 pre-release notes (draft only), see [RELEASE_NOTES.md](RELEASE_NOTES.md).
+For v0.4.0 release notes, see [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
 ## License
 
