@@ -39,7 +39,7 @@ public static class RecommendationAdvisor
                 "advice.windows-error-reports",
                 "Old Windows Error Reporting diagnostics can be cleaned in user scope after they are no longer needed.",
                 "Historical troubleshooting diagnostics may no longer be available.",
-                "Clean only after review and explicit confirmation.",
+                "Clean only after review and submitting your selection.",
                 "Only old user-scope diagnostics are targeted; active/pending reports and system-managed servicing data are not cleaned."),
 
             "cp.s1.windows-inet-cache" => new TargetAdvice(
@@ -169,7 +169,7 @@ public static class RecommendationAdvisor
                 "advice.app-profile-logs",
                 "Old app logs can be removed after the app is closed; account, session, settings, and workspace data are excluded.",
                 "Historical troubleshooting logs may no longer be available.",
-                "Clean only after review and explicit confirmation.",
+                "Clean only after review and submitting your selection.",
                 "Process guard, denylist checks, and deletion-time revalidation remain enforced."),
 
             "cp.s1.electron-app-crash-reports" or
@@ -180,7 +180,7 @@ public static class RecommendationAdvisor
                 "advice.app-profile-crash-diagnostics",
                 "Old completed crash diagnostics can be removed after the app is closed.",
                 "Historical crash investigation data may no longer be available.",
-                "Clean only after review and explicit confirmation.",
+                "Clean only after review and submitting your selection.",
                 "Only allowlisted files in completed diagnostic subpaths are eligible; process guard and safety gates still apply."),
 
             "cp.s1.nuget-http-cache" or
@@ -258,9 +258,9 @@ public static class RecommendationAdvisor
             RiskLevel.S1LowRisk => new TargetAdvice(
                 RecommendationLevel.Optional,
                 "risk.s1",
-                "Low-risk cleanup target requiring explicit confirmation.",
+                "Low-risk cleanup target requiring reviewed selection.",
                 "Some apps may rebuild cache or lose non-essential diagnostics.",
-                "Clean only after review and explicit confirmation.",
+                "Clean only after review and submitting your selection.",
                 "Protected roots, denylist checks, and revalidation still apply."),
 
             RiskLevel.S2ReviewRequired => new TargetAdvice(

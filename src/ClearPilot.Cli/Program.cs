@@ -1013,8 +1013,8 @@ static string GetRecommendedConfirmationBoundaryLine1(MessageCatalog text)
 static string GetRecommendedConfirmationBoundaryLine2(MessageCatalog text)
 {
     return text.Language == Language.SimplifiedChinese
-        ? "开始清理前必须进行明确确认。"
-        : "Explicit confirmation is required before cleanup starts.";
+        ? "提交选择后才会开始清理。"
+        : "Cleanup starts only after you submit the selection.";
 }
 
 static string GetRecommendedConfirmationBoundaryLine3(MessageCatalog text)

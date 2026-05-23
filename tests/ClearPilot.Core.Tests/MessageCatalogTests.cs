@@ -26,7 +26,7 @@ public sealed class MessageCatalogTests
         Assert.Equal("\u8BBE\u7F6E", catalog.Get(StringKey.MainMenuSettings));
         Assert.Contains("\u4EC5\u5206\u6790", catalog.Get(StringKey.DeepAnalysisReviewOnlyNotice), StringComparison.Ordinal);
         Assert.Contains("Downloads", catalog.Get(StringKey.DeepAnalysisReviewOnlyNotice), StringComparison.Ordinal);
-        Assert.Contains("\u9ED8\u8BA4\u4E0D\u6267\u884C", catalog.Get(StringKey.RecommendedActionHint));
+        Assert.Contains("\u8F93\u5165 0 \u53D6\u6D88", catalog.Get(StringKey.RecommendedActionHint), StringComparison.Ordinal);
     }
 
     [Fact]

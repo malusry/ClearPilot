@@ -80,7 +80,7 @@ public sealed class RecommendedCleanupCliOutputTests
         Assert.Contains("Enter item numbers to clean, A for all recommended items, or 0 to cancel", output, StringComparison.OrdinalIgnoreCase);
     }
 
-        [Fact]
+    [Fact]
     public void RecommendedCleanupCli_ZhCn_UsesOneStepConfirmationPrompt()
     {
         using var workspace = RecommendedCliTestWorkspace.Create();
@@ -117,7 +117,7 @@ public sealed class RecommendedCleanupCliOutputTests
         var zhOutput = workspace.RunRecommendedCleanupCli(Language.SimplifiedChinese, "2\n0\n\n0\n");
 
         Assert.DoesNotContain("Status:", output, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("鐘舵€?", zhOutput, StringComparison.Ordinal);
+        Assert.DoesNotContain("\u72B6\u6001:", zhOutput, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -214,7 +214,7 @@ public sealed class RecommendedCleanupCliOutputTests
             processGuardBlocked: false));
     }
 
-        [Fact]
+    [Fact]
     public void RecommendedCleanupCli_ASelectionWordingIsClear()
     {
         using var workspace = RecommendedCliTestWorkspace.Create();
