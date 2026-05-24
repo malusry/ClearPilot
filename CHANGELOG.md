@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.4.1 - 2026-05-24
+
+### Summary
+
+- Patch release for Quick Safe Clean CLI layout polish.
+
+### Changed
+
+- Moved the no-elevation / no service stop / no ACL change / no forced unlock message to the bottom of the Quick Safe Clean result page as a final safety hint.
+- Updated package metadata version to `0.4.1`.
+
+### Safety
+
+- No cleanup eligibility, rule, scanner, path safety, process guard, or deletion execution changes.
+- Quick Safe Clean remains S0-only.
+
 ## v0.4.0 - 2026-05-23
 
 ### Summary

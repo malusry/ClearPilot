@@ -66,7 +66,7 @@ public sealed class QuickSafeCliOutputTests
         var footerIndex = output.IndexOf("does not retry with elevated privileges", StringComparison.OrdinalIgnoreCase);
         var logIndex = output.IndexOf("Log folder", StringComparison.OrdinalIgnoreCase);
         Assert.True(skippedIndex >= 0 && footerIndex > skippedIndex, "Safety footer should appear after skipped reasons.");
-        Assert.True(logIndex < 0 || footerIndex < logIndex, "Safety footer should appear before log folder.");
+        Assert.True(logIndex < 0 || footerIndex > logIndex, "Safety footer should appear after log folder as the final hint.");
     }
 
     [Fact]

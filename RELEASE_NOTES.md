@@ -1,8 +1,16 @@
-# ClearPilot v0.4.0 Release Notes
+# ClearPilot v0.4.1 Release Notes
 
-ClearPilot v0.4.0 is the current stable release.
+ClearPilot v0.4.1 is the current stable release.
 
 ## Summary
+
+ClearPilot v0.4.1 is a patch release for the v0.4 line. It keeps the v0.4 cleanup coverage and safety model, and polishes the Quick Safe Clean result layout.
+
+## Patch Change
+
+- Moved the Quick Safe Clean safety policy message about no elevation, no service stopping, no ACL changes, and no forced unlock to the bottom of the result page as a final safety hint.
+
+## v0.4 Line Summary
 
 ClearPilot v0.4 focuses on broader visibility, conservative S1 cleanup expansion, clearer advisor-style decisions, and stronger UI/report clarity without relaxing safety gates.
 
@@ -137,9 +145,9 @@ Reason:
 
 Validated local package result:
 
-- output folder: `artifacts\rc\v0.4.0-win-x64-self-contained`
+- output folder: `artifacts\rc\v0.4.1-win-x64-self-contained`
 - file count: `194`
-- total size: `80,885,281 bytes` (~`77.14 MB`)
+- total size: `80,885,285 bytes` (~`77.14 MB`)
 
 The larger package size is expected for self-contained distribution.
 

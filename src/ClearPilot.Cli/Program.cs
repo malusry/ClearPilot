@@ -380,8 +380,6 @@ static void RunQuickSafeClean(AppSettings settings)
         WriteQuickSafeSkippedReasonSummary(text, result);
     }
 
-    WriteLineColor(text.Get(StringKey.QuickSafeCleanFailureNoElevation), Theme.Warning);
-
     if (!string.IsNullOrWhiteSpace(result.LogPath))
     {
         WriteCleanupLogLocation(text, result.LogPath);
@@ -390,6 +388,9 @@ static void RunQuickSafeClean(AppSettings settings)
     {
         WriteLineColor($"{text.Get(StringKey.QuickSafeCleanLogError)}: {result.LogError}", Theme.Danger);
     }
+
+    Console.WriteLine();
+    WriteLineColor(text.Get(StringKey.QuickSafeCleanFailureNoElevation), Theme.Warning);
 
     Pause(text);
 }
