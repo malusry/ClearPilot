@@ -18,6 +18,12 @@ ConfigureConsole();
 var settingsStore = SettingsStore.CreateDefault();
 var settings = settingsStore.Load();
 
+if (NonInteractiveCleanupCommand.TryRun(args, settings, out var exitCode))
+{
+    Environment.ExitCode = exitCode;
+    return;
+}
+
 RunMainMenu(settings, settingsStore);
 
 static void RunMainMenu(AppSettings settings, SettingsStore settingsStore)

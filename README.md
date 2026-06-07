@@ -2,7 +2,7 @@
 
 ClearPilot is a conservative Windows cleanup assistant. It focuses on cache cleanup, explainable decisions, and strict safety boundaries rather than aggressive system tweaking.
 
-**Latest release:** [v0.4.1](https://github.com/malusry/ClearPilot/releases/tag/v0.4.1)
+**Latest release:** [v0.4.2](https://github.com/malusry/ClearPilot/releases/tag/v0.4.2)
 
 ## Highlights
 
@@ -18,13 +18,13 @@ ClearPilot is a conservative Windows cleanup assistant. It focuses on cache clea
 
 Download the latest Windows package from:
 
-[ClearPilot v0.4.1 release](https://github.com/malusry/ClearPilot/releases/tag/v0.4.1)
+[ClearPilot v0.4.2 release](https://github.com/malusry/ClearPilot/releases/tag/v0.4.2)
 
-The recommended v0.4.1 Windows package is the `win-x64` self-contained zip. It includes the .NET runtime, so a separate global .NET runtime installation is not required.
+The recommended v0.4.2 Windows package is the `win-x64` self-contained zip. It includes the .NET runtime, so a separate global .NET runtime installation is not required.
 
 Release assets include:
 
-- `ClearPilot-v0.4.1-win-x64-self-contained.zip`
+- `ClearPilot-v0.4.2-win-x64-self-contained.zip`
 - `SHA256SUMS.txt`
 
 The zip contains:
@@ -40,7 +40,7 @@ To run:
 
 ## v0.4 Packaging
 
-The v0.4.1 release uses:
+The v0.4.2 release uses:
 
 - `win-x64` self-contained package
 - Includes the required .NET runtime
@@ -48,9 +48,9 @@ The v0.4.1 release uses:
 
 Validated release package:
 
-- Output folder: `artifacts\rc\v0.4.1-win-x64-self-contained`
+- Output folder: `artifacts\rc\v0.4.2-win-x64-self-contained`
 - File count: `194`
-- Total size: `80,885,285 bytes` (~`77.14 MB`)
+- Total size: `80,898,337 bytes` (~`77.15 MB`)
 
 The larger package size is expected for self-contained distribution.
 
@@ -98,6 +98,10 @@ Safety gates are enforced in the cleanup engine. User-facing recommendations do 
   - `Risk`
 - `A` selects only eligible recommended S1 items.
 - Process-guard-blocked items are excluded from bulk selection.
+- Desktop-app integration entry is available for background invocation:
+  - `ClearPilot.exe clean --recommended --json`
+  - returns a single JSON document on stdout
+  - does not open the interactive menu
 
 ### Deep Space Analysis
 
@@ -269,7 +273,7 @@ ClearPilot records metadata about cleanup decisions and results. It does not log
 
 ## Release Notes
 
-For v0.4.1 release notes, see [RELEASE_NOTES.md](RELEASE_NOTES.md).
+For v0.4.2 release notes, see [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
 ## License
 

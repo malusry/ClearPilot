@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.4.2 - 2026-06-07
+
+### Summary
+
+- Patch release for desktop-app integration via a stable non-interactive cleanup command.
+
+### Added
+
+- Added non-interactive CLI entry support for:
+  - `ClearPilot.exe clean --recommended --json`
+- The command:
+  - does not open the interactive menu
+  - does not wait for keyboard input
+  - writes a single JSON document to stdout
+  - runs Quick Safe first, then the safe `A/all` equivalent of Recommended Cleanup
+- Added argument-error JSON responses for invalid `--json` command usage.
+- Added CLI regression coverage for non-interactive routing, JSON structure, safe selection boundaries, and partial-failure behavior.
+
+### Safety
+
+- No cleanup eligibility, risk classification, rule coverage, path safety, process guard semantics, or deletion-time revalidation changes.
+- Quick Safe remains S0-only.
+- Recommended Cleanup remains confirmed-S1-only.
+- Non-interactive recommended cleanup selects only the same safe recommended S1 set as the existing `A/all` path.
+
+### Validation
+
+- Full tests: 289 passed, 0 failed, 0 skipped.
+- Self-contained `win-x64` publish validated with non-interactive JSON smoke coverage.
+
 ## v0.4.1 - 2026-05-24
 
 ### Summary

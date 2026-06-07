@@ -1,14 +1,18 @@
-# ClearPilot v0.4.1 Release Notes
+# ClearPilot v0.4.2 Release Notes
 
-ClearPilot v0.4.1 is the current stable release.
+ClearPilot v0.4.2 is the current stable release.
 
 ## Summary
 
-ClearPilot v0.4.1 is a patch release for the v0.4 line. It keeps the v0.4 cleanup coverage and safety model, and polishes the Quick Safe Clean result layout.
+ClearPilot v0.4.2 is a patch release for the v0.4 line. It keeps the v0.4 cleanup coverage and safety model, and adds a stable non-interactive cleanup command for desktop app integration.
 
 ## Patch Change
 
-- Moved the Quick Safe Clean safety policy message about no elevation, no service stopping, no ACL changes, and no forced unlock to the bottom of the result page as a final safety hint.
+- Added a non-interactive desktop integration command:
+  - `ClearPilot.exe clean --recommended --json`
+- The command returns exactly one JSON document on stdout, skips the interactive menu, and does not wait for `Console.ReadLine`.
+- Quick Safe runs first, then Recommended Cleanup selects only the same safe recommended S1 set as the existing `A/all` behavior.
+- Invalid `--json` command forms now return a stable JSON argument error with exit code `2`.
 
 ## v0.4 Line Summary
 
@@ -35,6 +39,12 @@ ClearPilot v0.4 focuses on broader visibility, conservative S1 cleanup expansion
 - Process-guard-blocked S1 items are excluded from bulk selection.
 - One-step selection confirmation flow: submitting a valid selection starts cleanup; `0` cancels.
 - Field-level and field-label semantic color system added.
+- Non-interactive desktop integration now supports:
+  - `clean --recommended --json`
+  - no menu
+  - no prompt
+  - no stdin wait
+  - JSON-only stdout
 
 ### Deep Space Analysis
 
@@ -130,7 +140,7 @@ No administrator requirement is introduced for v0.4 cleanup flows.
 
 ## Validation Snapshot
 
-- Full test suite: 280 passed, 0 failed, 0 skipped
+- Full test suite: 289 passed, 0 failed, 0 skipped
 
 ## Packaging Strategy
 
@@ -145,9 +155,16 @@ Reason:
 
 Validated local package result:
 
-- output folder: `artifacts\rc\v0.4.1-win-x64-self-contained`
+- output folder: `artifacts\rc\v0.4.2-win-x64-self-contained`
 - file count: `194`
-- total size: `80,885,285 bytes` (~`77.14 MB`)
+- total size: `80,898,337 bytes` (~`77.15 MB`)
+
+Validated v0.4.2 non-interactive smoke:
+
+- `ClearPilot.exe clean --recommended --json`
+- JSON stdout only
+- exit code `0` on completed flow
+- exit code `2` on invalid argument shape
 
 The larger package size is expected for self-contained distribution.
 
