@@ -553,11 +553,9 @@ public sealed class DeepSpaceAnalyzerTests
     [Fact]
     public void DeepSpace_DefaultScope_IncludesDownloadsReadOnly()
     {
-        var downloads = GetDownloadsPath();
-        if (string.IsNullOrWhiteSpace(downloads) || !Directory.Exists(downloads))
-        {
-            return;
-        }
+        using var workspace = TestWorkspace.Create();
+        var downloads = workspace.CreateDirectory("Downloads");
+        var provider = new FakeSpecialFolderProvider(downloads);
 
         var marker = $"ClearPilot.DeepSpace.{Guid.NewGuid():N}";
         var probeDirectory = Path.Combine(downloads, marker);
@@ -572,11 +570,12 @@ public sealed class DeepSpaceAnalyzerTests
 
             File.SetLastWriteTimeUtc(probeFile, DateTime.UtcNow.AddDays(-2));
 
-            var analyzer = new DeepSpaceAnalyzer(ProtectedPathPolicy.CreateDefault());
+            var analyzer = new DeepSpaceAnalyzer(ProtectedPathPolicy.CreateDefault(), null, provider);
             var options = CreateDownloadsOnlyOptions(downloads);
+            var defaultOptions = DeepSpaceAnalyzer.CreateDefaultOptions(provider);
             var result = analyzer.AnalyzeWithSummary(options, DateTimeOffset.UtcNow);
 
-            Assert.Contains(options.RootPaths.Select(NormalizePath), root => string.Equals(root, NormalizePath(downloads), StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(defaultOptions.RootPaths.Select(NormalizePath), root => string.Equals(root, NormalizePath(downloads), StringComparison.OrdinalIgnoreCase));
             Assert.Contains(result.Items, item => item.Path.Equals(probeFile, StringComparison.OrdinalIgnoreCase));
             Assert.True(File.Exists(probeFile));
         }
@@ -589,11 +588,9 @@ public sealed class DeepSpaceAnalyzerTests
     [Fact]
     public void DeepSpace_DownloadsFinding_IsAnalysisOnlyS2()
     {
-        var downloads = GetDownloadsPath();
-        if (string.IsNullOrWhiteSpace(downloads) || !Directory.Exists(downloads))
-        {
-            return;
-        }
+        using var workspace = TestWorkspace.Create();
+        var downloads = workspace.CreateDirectory("Downloads");
+        var provider = new FakeSpecialFolderProvider(downloads);
 
         var marker = $"ClearPilot.DeepSpace.{Guid.NewGuid():N}";
         var probeDirectory = Path.Combine(downloads, marker);
@@ -608,7 +605,7 @@ public sealed class DeepSpaceAnalyzerTests
 
             File.SetLastWriteTimeUtc(probeFile, DateTime.UtcNow.AddDays(-2));
 
-            var analyzer = new DeepSpaceAnalyzer(ProtectedPathPolicy.CreateDefault());
+            var analyzer = new DeepSpaceAnalyzer(ProtectedPathPolicy.CreateDefault(), null, provider);
             var result = analyzer.Analyze(CreateDownloadsOnlyOptions(downloads), DateTimeOffset.UtcNow);
             var item = Assert.Single(result, candidate => candidate.Path.Equals(probeFile, StringComparison.OrdinalIgnoreCase));
 
@@ -624,11 +621,9 @@ public sealed class DeepSpaceAnalyzerTests
     [Fact]
     public void DeepSpace_DownloadsFinding_IsNotCleanupEligible()
     {
-        var downloads = GetDownloadsPath();
-        if (string.IsNullOrWhiteSpace(downloads) || !Directory.Exists(downloads))
-        {
-            return;
-        }
+        using var workspace = TestWorkspace.Create();
+        var downloads = workspace.CreateDirectory("Downloads");
+        var provider = new FakeSpecialFolderProvider(downloads);
 
         var marker = $"ClearPilot.DeepSpace.{Guid.NewGuid():N}";
         var probeDirectory = Path.Combine(downloads, marker);
@@ -643,7 +638,7 @@ public sealed class DeepSpaceAnalyzerTests
 
             File.SetLastWriteTimeUtc(probeFile, DateTime.UtcNow.AddDays(-2));
 
-            var analyzer = new DeepSpaceAnalyzer(ProtectedPathPolicy.CreateDefault());
+            var analyzer = new DeepSpaceAnalyzer(ProtectedPathPolicy.CreateDefault(), null, provider);
             var result = analyzer.Analyze(CreateDownloadsOnlyOptions(downloads), DateTimeOffset.UtcNow);
             var item = Assert.Single(result, candidate => candidate.Path.Equals(probeFile, StringComparison.OrdinalIgnoreCase));
             var advice = RecommendationAdvisor.ForDeepSpaceItem(item);
@@ -688,11 +683,9 @@ public sealed class DeepSpaceAnalyzerTests
     [Fact]
     public void DeepSpace_Downloads_ReparsePointNotTraversedAsCleanup()
     {
-        var downloads = GetDownloadsPath();
-        if (string.IsNullOrWhiteSpace(downloads) || !Directory.Exists(downloads))
-        {
-            return;
-        }
+        using var workspace = TestWorkspace.Create();
+        var downloads = workspace.CreateDirectory("Downloads");
+        var provider = new FakeSpecialFolderProvider(downloads);
 
         var marker = $"ClearPilot.DeepSpace.{Guid.NewGuid():N}";
         var probeDirectory = Path.Combine(downloads, marker);
@@ -717,7 +710,7 @@ public sealed class DeepSpaceAnalyzerTests
                 return;
             }
 
-            var analyzer = new DeepSpaceAnalyzer(ProtectedPathPolicy.CreateDefault());
+            var analyzer = new DeepSpaceAnalyzer(ProtectedPathPolicy.CreateDefault(), null, provider);
             var result = analyzer.Analyze(CreateDownloadsOnlyOptions(downloads), DateTimeOffset.UtcNow);
 
             Assert.DoesNotContain(result, item => item.Path.StartsWith(linkPath, StringComparison.OrdinalIgnoreCase));
@@ -753,7 +746,7 @@ public sealed class DeepSpaceAnalyzerTests
             FileTypeSummaryThresholdBytes = 1024,
             OldArchiveAge = TimeSpan.FromDays(1),
             MaxDepth = 3,
-            MaxResults = 20
+            MaxResults = 1000
         };
     }
 
@@ -768,6 +761,21 @@ public sealed class DeepSpaceAnalyzerTests
         return string.IsNullOrWhiteSpace(userProfile)
             ? string.Empty
             : Path.Combine(userProfile, "Downloads");
+    }
+
+    private sealed class FakeSpecialFolderProvider : IDeepSpaceSpecialFolderProvider
+    {
+        private readonly string? downloadsPath;
+
+        public FakeSpecialFolderProvider(string? downloadsPath)
+        {
+            this.downloadsPath = downloadsPath;
+        }
+
+        public string? TryGetDownloadsPath()
+        {
+            return downloadsPath;
+        }
     }
 
     private static void TryDeleteDirectory(string path)
