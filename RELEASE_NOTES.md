@@ -1,6 +1,6 @@
-# ClearPilot v0.4.3 Release Notes (Draft)
+# ClearPilot v0.4.3 Release Notes
 
-ClearPilot v0.4.3 is a draft patch release candidate. The latest published release remains v0.4.2 until a GitHub release is created.
+ClearPilot v0.4.3 is the current stable release.
 
 ## Summary
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased - v0.4.3
+## v0.4.3 - 2026-06-11
 
 ### Summary
 
@@ -31,7 +31,7 @@
 
 - NonInteractiveCliCommandTests: 13 passed, 0 failed, 0 skipped.
 - Full tests: 293 passed, 0 failed, 0 skipped.
-- `win-x64` self-contained RC package generated at `artifacts\rc\v0.4.3-win-x64-self-contained`.
+- `win-x64` self-contained package generated at `artifacts\rc\v0.4.3-win-x64-self-contained`.
 - BubblePet dry-run smoke passed with JSON-only stdout, exit code 0, and `protected-running-app-cache` in the recommended cleanup log.
 
 ## v0.4.2 - 2026-06-07
