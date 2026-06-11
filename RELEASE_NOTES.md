@@ -169,7 +169,7 @@ Validated local package result:
 
 - output folder: `artifacts\rc\v0.4.3-win-x64-self-contained`
 - file count: `194`
-- total size: `80,912,181 bytes` (~`77.16 MB`)
+- total size: approximately `77.16 MB`
 
 Validated v0.4.3 non-interactive smoke:
 
