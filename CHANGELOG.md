@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased - v0.4.3
+
+### Summary
+
+- Adds a BubblePet/WebView-safe variant of the non-interactive recommended cleanup command.
+
+### Added
+
+- Added external-caller safe mode:
+  - `ClearPilot.exe clean --recommended --json --external-caller bubblepet`
+- Added dry-run validation support for the external caller path:
+  - `ClearPilot.exe clean --recommended --json --external-caller bubblepet --dry-run`
+- Added explicit skipped logging with reason:
+  - `protected-running-app-cache`
+
+### Safety
+
+- Existing `ClearPilot.exe clean --recommended --json` behavior is unchanged.
+- BubblePet mode remains non-interactive, JSON-only, and does not wait for stdin.
+- BubblePet mode skips protected desktop-app runtime cache roots, including:
+  - `%APPDATA%\com.bubblepet.translator`
+  - `%LOCALAPPDATA%\com.bubblepet.translator`
+  - `%LOCALAPPDATA%\Packages\*\LocalCache`
+  - `GPUCache`, `GrShaderCache`, `ShaderCache`, `D3DSCache`, `DXCache`, `GLCache`, `ComputeCache`
+- Skipped protected app-cache paths are counted as skipped, not failed.
+- No cleanup rule coverage, risk classification, path safety, or deletion-time revalidation is relaxed.
+
+### Validation
+
+- NonInteractiveCliCommandTests: 13 passed, 0 failed, 0 skipped.
+- Full tests: 293 passed, 0 failed, 0 skipped.
+- `win-x64` self-contained RC package generated at `artifacts\rc\v0.4.3-win-x64-self-contained`.
+- BubblePet dry-run smoke passed with JSON-only stdout, exit code 0, and `protected-running-app-cache` in the recommended cleanup log.
+
 ## v0.4.2 - 2026-06-07
 
 ### Summary

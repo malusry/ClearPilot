@@ -157,7 +157,9 @@ internal static class NonInteractiveCleanupCommand
         {
             var protectedFilterResult = ProtectRunningAppCacheRoots(selectedRules, now);
             selectedRules = protectedFilterResult.Rules.ToArray();
-            protectedSkippedItems = protectedFilterResult.SkippedItems.ToArray();
+            protectedSkippedItems = protectedFilterResult.SkippedItems
+                .Concat(CreateExternalCallerProtectedSkippedItems(commandOptions, now, protectedFilterResult.SkippedItems))
+                .ToArray();
         }
 
         var recommendedResult = selectedRules.Length == 0
@@ -239,15 +241,123 @@ internal static class NonInteractiveCleanupCommand
         return false;
     }
 
+    private static IReadOnlyList<CleanupItemResult> CreateExternalCallerProtectedSkippedItems(
+        NonInteractiveCleanupOptions commandOptions,
+        DateTimeOffset now,
+        IReadOnlyList<CleanupItemResult> existingSkippedItems)
+    {
+        var protectedRoots = GetExternalCallerProtectedRoots(commandOptions).ToArray();
+        if (protectedRoots.Length == 0)
+        {
+            return [];
+        }
+
+        var existingPaths = existingSkippedItems
+            .Select(item => NormalizePath(item.Path))
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var rule = CreateExternalCallerProtectionRule();
+        var skippedItems = new List<CleanupItemResult>();
+
+        foreach (var root in protectedRoots)
+        {
+            var normalized = NormalizePath(root);
+            if (string.IsNullOrWhiteSpace(normalized)
+                || (!Directory.Exists(normalized) && !IsBubblePetAppDataRoot(normalized))
+                || !existingPaths.Add(normalized))
+            {
+                continue;
+            }
+
+            skippedItems.Add(CreateProtectedRunningAppCacheSkippedItem(rule, normalized, now));
+        }
+
+        return skippedItems;
+    }
+
+    private static IEnumerable<string> GetExternalCallerProtectedRoots(NonInteractiveCleanupOptions commandOptions)
+    {
+        var localAppData = Environment.GetEnvironmentVariable("LOCALAPPDATA") ?? string.Empty;
+        var roamingAppData = Environment.GetEnvironmentVariable("APPDATA") ?? string.Empty;
+
+        if (string.Equals(commandOptions.ExternalCaller, "bubblepet", StringComparison.OrdinalIgnoreCase))
+        {
+            foreach (var baseRoot in new[] { roamingAppData, localAppData }.Where(path => !string.IsNullOrWhiteSpace(path)))
+            {
+                yield return Path.Combine(baseRoot, "com.bubblepet.translator");
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(localAppData))
+        {
+            foreach (var segment in ProtectedRunningAppCacheSegments)
+            {
+                yield return Path.Combine(localAppData, segment);
+            }
+
+            var packagesRoot = Path.Combine(localAppData, "Packages");
+            if (Directory.Exists(packagesRoot))
+            {
+                foreach (var packageRoot in EnumerateDirectoriesSafe(packagesRoot))
+                {
+                    yield return Path.Combine(packageRoot, "LocalCache");
+                }
+            }
+        }
+    }
+
+    private static IEnumerable<string> EnumerateDirectoriesSafe(string root)
+    {
+        try
+        {
+            return Directory.EnumerateDirectories(root).ToArray();
+        }
+        catch (IOException)
+        {
+            return [];
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return [];
+        }
+    }
+
+    private static CleanupRule CreateExternalCallerProtectionRule()
+    {
+        return new CleanupRule(
+            "cp.s1.external-running-app-cache-protection",
+            "Desktop app runtime caches",
+            RiskLevel.S1LowRisk,
+            [],
+            ["*"],
+            [],
+            null,
+            "Runtime cache protected for an external desktop app caller.",
+            Recursive: true,
+            LauncherName: "External desktop app");
+    }
+
+    private static readonly string[] ProtectedRunningAppCacheSegments =
+    [
+        "GPUCache",
+        "GrShaderCache",
+        "ShaderCache",
+        "D3DSCache",
+        "DXCache",
+        "GLCache",
+        "ComputeCache"
+    ];
+
     private static bool IsProtectedRunningAppCacheSegment(string segment)
     {
-        return string.Equals(segment, "GPUCache", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(segment, "GrShaderCache", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(segment, "ShaderCache", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(segment, "D3DSCache", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(segment, "DXCache", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(segment, "GLCache", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(segment, "ComputeCache", StringComparison.OrdinalIgnoreCase);
+        return ProtectedRunningAppCacheSegments.Contains(segment, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static bool IsBubblePetAppDataRoot(string normalizedPath)
+    {
+        return normalizedPath
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            .EndsWith($"{Path.DirectorySeparatorChar}com.bubblepet.translator", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool ContainsPathSegmentSequence(string normalizedPath, string segment)
@@ -334,11 +444,29 @@ internal static class NonInteractiveCleanupCommand
         }
         catch (IOException ex)
         {
-            return mergedResult with { LogError = ex.Message };
+            return WriteFallbackLog(mergedResult, ex.Message);
         }
         catch (UnauthorizedAccessException ex)
         {
-            return mergedResult with { LogError = ex.Message };
+            return WriteFallbackLog(mergedResult, ex.Message);
+        }
+    }
+
+    private static CleanupRunResult WriteFallbackLog(CleanupRunResult result, string originalError)
+    {
+        try
+        {
+            var fallbackStore = new CleanupLogStore(Path.Combine(AppContext.BaseDirectory, "logs"));
+            var fallbackPath = fallbackStore.Write(CleanupRunLog.FromResult(result));
+            return result with { LogPath = fallbackPath, LogError = originalError };
+        }
+        catch (IOException)
+        {
+            return result with { LogError = originalError };
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return result with { LogError = originalError };
         }
     }
 

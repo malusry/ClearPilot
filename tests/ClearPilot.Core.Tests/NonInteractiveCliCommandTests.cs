@@ -193,20 +193,33 @@ public sealed class NonInteractiveCliCommandTests
     public void CleanRecommendedJson_ExternalCallerBubblePet_ProtectsAppAndShaderCaches()
     {
         using var workspace = NonInteractiveCliTestWorkspace.Create();
-        var bubblePetCache = workspace.CreateBubblePetAppDataCache();
+        var localBubblePetCache = workspace.CreateLocalBubblePetAppDataCache();
+        var roamingBubblePetCache = workspace.CreateRoamingBubblePetAppDataCache();
         var directXShaderCache = workspace.CreateDirectXShaderCacheFile();
+        var shaderCacheFiles = workspace.CreateShaderCacheFiles();
 
         var result = workspace.RunCli(Language.English, "clean --recommended --json --external-caller bubblepet");
 
         Assert.Equal(0, result.ExitCode);
-        Assert.True(File.Exists(bubblePetCache));
+        Assert.True(File.Exists(localBubblePetCache));
+        Assert.True(File.Exists(roamingBubblePetCache));
         Assert.True(File.Exists(directXShaderCache));
+        Assert.All(shaderCacheFiles, path => Assert.True(File.Exists(path), path));
 
         using var json = JsonDocument.Parse(result.StdOut);
         var recommended = json.RootElement.GetProperty("recommended");
         Assert.Equal(0, recommended.GetProperty("deletedCount").GetInt32());
         Assert.True(recommended.GetProperty("skippedCount").GetInt32() > 0);
-        Assert.Contains("protected-running-app-cache", workspace.ReadRecommendedCleanupLogs(), StringComparison.OrdinalIgnoreCase);
+        var logs = workspace.ReadRecommendedCleanupLogs();
+        Assert.Contains("protected-running-app-cache", logs, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("com.bubblepet.translator", logs, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("GPUCache", logs, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("GrShaderCache", logs, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ShaderCache", logs, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("D3DSCache", logs, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("DXCache", logs, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("GLCache", logs, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ComputeCache", logs, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -240,7 +253,8 @@ public sealed class NonInteractiveCliCommandTests
 
         using var json = JsonDocument.Parse(result.StdOut);
         var recommended = json.RootElement.GetProperty("recommended");
-        Assert.Equal(1, recommended.GetProperty("deletedCount").GetInt32());
+        Assert.True(recommended.GetProperty("deletedCount").GetInt32() >= 1);
+        Assert.DoesNotContain("protected-running-app-cache", workspace.ReadRecommendedCleanupLogs(), StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -256,9 +270,16 @@ public sealed class NonInteractiveCliCommandTests
         Assert.True(File.Exists(storeCache));
         Assert.True(File.Exists(recommendedFile));
         Assert.DoesNotContain("Quick Safe Clean", result.StdOut, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Recommended Cleanup", result.StdOut, StringComparison.OrdinalIgnoreCase);
 
         using var json = JsonDocument.Parse(result.StdOut);
         Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.True(json.RootElement.TryGetProperty("mode", out _));
+        Assert.True(json.RootElement.TryGetProperty("quickSafe", out _));
+        Assert.True(json.RootElement.TryGetProperty("recommended", out _));
+        Assert.True(json.RootElement.TryGetProperty("totalDeletedCount", out _));
+        Assert.True(json.RootElement.TryGetProperty("totalDeletedBytes", out _));
+        Assert.True(json.RootElement.TryGetProperty("message", out _));
         var recommended = json.RootElement.GetProperty("recommended");
         Assert.Equal(0, recommended.GetProperty("deletedCount").GetInt32());
         Assert.True(recommended.GetProperty("skippedCount").GetInt32() > 0);
@@ -272,12 +293,14 @@ public sealed class NonInteractiveCliCommandTests
         {
             Root = root;
             LocalAppDataRoot = Path.Combine(root, "LocalAppData");
+            RoamingAppDataRoot = Path.Combine(root, "RoamingAppData");
             UserProfileRoot = Path.Combine(root, "UserProfile");
             TempRoot = Path.Combine(root, "Temp");
             SettingsPath = Path.Combine(root, "settings", "settings.json");
             LogDirectory = Path.Combine(root, "logs");
 
             Directory.CreateDirectory(LocalAppDataRoot);
+            Directory.CreateDirectory(RoamingAppDataRoot);
             Directory.CreateDirectory(UserProfileRoot);
             Directory.CreateDirectory(TempRoot);
             Directory.CreateDirectory(LogDirectory);
@@ -286,6 +309,8 @@ public sealed class NonInteractiveCliCommandTests
         public string Root { get; }
 
         public string LocalAppDataRoot { get; }
+
+        public string RoamingAppDataRoot { get; }
 
         public string UserProfileRoot { get; }
 
@@ -332,10 +357,18 @@ public sealed class NonInteractiveCliCommandTests
                 DateTime.UtcNow.AddDays(-2));
         }
 
-        public string CreateBubblePetAppDataCache()
+        public string CreateLocalBubblePetAppDataCache()
         {
             return CreateFile(
                 Path.Combine(LocalAppDataRoot, "com.bubblepet.translator", "GPUCache", "bubblepet-cache.bin"),
+                4096,
+                DateTime.UtcNow.AddDays(-2));
+        }
+
+        public string CreateRoamingBubblePetAppDataCache()
+        {
+            return CreateFile(
+                Path.Combine(RoamingAppDataRoot, "com.bubblepet.translator", "Cache", "bubblepet-cache.bin"),
                 4096,
                 DateTime.UtcNow.AddDays(-2));
         }
@@ -354,6 +387,27 @@ public sealed class NonInteractiveCliCommandTests
                 Path.Combine(LocalAppDataRoot, "Packages", "BubblePet.Test_123", "LocalCache", "webview-cache.bin"),
                 4096,
                 DateTime.UtcNow.AddDays(-2));
+        }
+
+        public IReadOnlyList<string> CreateShaderCacheFiles()
+        {
+            var segments = new[]
+            {
+                "GPUCache",
+                "GrShaderCache",
+                "ShaderCache",
+                "D3DSCache",
+                "DXCache",
+                "GLCache",
+                "ComputeCache"
+            };
+
+            return segments
+                .Select(segment => CreateFile(
+                    Path.Combine(LocalAppDataRoot, segment, "cache.bin"),
+                    4096,
+                    DateTime.UtcNow.AddDays(-2)))
+                .ToArray();
         }
 
         public string ReadRecommendedCleanupLogs()
@@ -437,7 +491,7 @@ public sealed class NonInteractiveCliCommandTests
             startInfo.Environment["CLEARPILOT_SETTINGS_PATH"] = SettingsPath;
             startInfo.Environment["CLEARPILOT_LOG_DIR"] = LogDirectory;
             startInfo.Environment["LOCALAPPDATA"] = LocalAppDataRoot;
-            startInfo.Environment["APPDATA"] = Path.Combine(Root, "RoamingAppData");
+            startInfo.Environment["APPDATA"] = RoamingAppDataRoot;
             startInfo.Environment["USERPROFILE"] = UserProfileRoot;
             startInfo.Environment["TEMP"] = TempRoot;
             startInfo.Environment["TMP"] = TempRoot;

@@ -1,18 +1,22 @@
-# ClearPilot v0.4.2 Release Notes
+# ClearPilot v0.4.3 Release Notes (Draft)
 
-ClearPilot v0.4.2 is the current stable release.
+ClearPilot v0.4.3 is a draft patch release candidate. The latest published release remains v0.4.2 until a GitHub release is created.
 
 ## Summary
 
-ClearPilot v0.4.2 is a patch release for the v0.4 line. It keeps the v0.4 cleanup coverage and safety model, and adds a stable non-interactive cleanup command for desktop app integration.
+ClearPilot v0.4.3 keeps the v0.4 cleanup coverage and safety model, preserves the original non-interactive cleanup command, and adds a BubblePet/WebView-safe external-caller mode for desktop app integration.
 
 ## Patch Change
 
-- Added a non-interactive desktop integration command:
+- Existing non-interactive desktop integration command remains available and unchanged:
   - `ClearPilot.exe clean --recommended --json`
-- The command returns exactly one JSON document on stdout, skips the interactive menu, and does not wait for `Console.ReadLine`.
+- Added BubblePet / Tauri / WebView safe mode:
+  - `ClearPilot.exe clean --recommended --json --external-caller bubblepet`
+- Added dry-run validation for the BubblePet safe path:
+  - `ClearPilot.exe clean --recommended --json --external-caller bubblepet --dry-run`
+- These commands return exactly one JSON document on stdout, skip the interactive menu, and do not wait for `Console.ReadLine`.
 - Quick Safe runs first, then Recommended Cleanup selects only the same safe recommended S1 set as the existing `A/all` behavior.
-- Invalid `--json` command forms now return a stable JSON argument error with exit code `2`.
+- BubblePet mode additionally skips protected running desktop-app cache paths and records `protected-running-app-cache` in the recommended cleanup log.
 
 ## v0.4 Line Summary
 
@@ -41,10 +45,17 @@ ClearPilot v0.4 focuses on broader visibility, conservative S1 cleanup expansion
 - Field-level and field-label semantic color system added.
 - Non-interactive desktop integration now supports:
   - `clean --recommended --json`
+  - `clean --recommended --json --external-caller bubblepet`
+  - `clean --recommended --json --external-caller bubblepet --dry-run`
   - no menu
   - no prompt
   - no stdin wait
   - JSON-only stdout
+- BubblePet mode skips WebView/Tauri/Electron/MS Store/GPU shader cache risk paths:
+  - `%APPDATA%\com.bubblepet.translator`
+  - `%LOCALAPPDATA%\com.bubblepet.translator`
+  - `%LOCALAPPDATA%\Packages\*\LocalCache`
+  - `GPUCache`, `GrShaderCache`, `ShaderCache`, `D3DSCache`, `DXCache`, `GLCache`, `ComputeCache`
 
 ### Deep Space Analysis
 
@@ -140,7 +151,8 @@ No administrator requirement is introduced for v0.4 cleanup flows.
 
 ## Validation Snapshot
 
-- Full test suite: 289 passed, 0 failed, 0 skipped
+- Full test suite: 293 passed, 0 failed, 0 skipped
+- NonInteractiveCliCommandTests: 13 passed, 0 failed, 0 skipped
 
 ## Packaging Strategy
 
@@ -155,15 +167,18 @@ Reason:
 
 Validated local package result:
 
-- output folder: `artifacts\rc\v0.4.2-win-x64-self-contained`
+- output folder: `artifacts\rc\v0.4.3-win-x64-self-contained`
 - file count: `194`
-- total size: `80,898,337 bytes` (~`77.15 MB`)
+- total size: `80,912,189 bytes` (~`77.16 MB`)
 
-Validated v0.4.2 non-interactive smoke:
+Validated v0.4.3 non-interactive smoke:
 
-- `ClearPilot.exe clean --recommended --json`
+- `ClearPilot.exe clean --recommended --json --external-caller bubblepet --dry-run`
 - JSON stdout only
 - exit code `0` on completed flow
+- menu text not emitted
+- `recommended.skippedCount` includes protected app-cache skips
+- recommended cleanup log contains `protected-running-app-cache`
 - exit code `2` on invalid argument shape
 
 The larger package size is expected for self-contained distribution.

@@ -102,6 +102,10 @@ Safety gates are enforced in the cleanup engine. User-facing recommendations do 
   - `ClearPilot.exe clean --recommended --json`
   - returns a single JSON document on stdout
   - does not open the interactive menu
+- BubblePet / WebView desktop-app safe integration is available with:
+  - `ClearPilot.exe clean --recommended --json --external-caller bubblepet`
+  - optional validation mode: `ClearPilot.exe clean --recommended --json --external-caller bubblepet --dry-run`
+  - skips running desktop-app cache risk paths such as WebView/Tauri/Electron/MS Store `LocalCache`, GPU shader caches, and BubblePet app data
 
 ### Deep Space Analysis
 
@@ -223,6 +227,51 @@ ClearPilot intentionally does not perform:
   - WER ReportQueue (strict exclusions)
 - System-managed diagnostics:
   - review-only or blocked (not cleanup targets)
+
+## Non-Interactive Desktop Integration
+
+ClearPilot provides JSON-only commands for desktop applications that need to call cleanup in the background.
+
+Original non-interactive mode:
+
+```powershell
+ClearPilot.exe clean --recommended --json
+```
+
+This preserves the existing v0.4.2 behavior: it does not open the menu, does not wait for input, runs Quick Safe first, then runs the eligible recommended S1 cleanup set, and writes one JSON document to stdout.
+
+BubblePet / Tauri / WebView safe mode:
+
+```powershell
+ClearPilot.exe clean --recommended --json --external-caller bubblepet
+```
+
+This mode is also non-interactive and JSON-only, but additionally skips desktop-app runtime cache paths that can affect a running pet or WebView host. Protected skipped paths are logged with:
+
+```text
+protected-running-app-cache
+```
+
+Protected path classes include:
+
+- `%APPDATA%\com.bubblepet.translator`
+- `%LOCALAPPDATA%\com.bubblepet.translator`
+- `%LOCALAPPDATA%\Packages\*\LocalCache`
+- `GPUCache`
+- `GrShaderCache`
+- `ShaderCache`
+- `D3DSCache`
+- `DXCache`
+- `GLCache`
+- `ComputeCache`
+
+Dry-run validation:
+
+```powershell
+ClearPilot.exe clean --recommended --json --external-caller bubblepet --dry-run
+```
+
+Dry-run produces the same stable JSON shape without deleting files.
 
 ## Design Principles
 
